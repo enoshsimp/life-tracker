@@ -24,7 +24,11 @@ export function appDayDate(now: Date, dayStartHour: number): Date {
 
 /** "YYYY-MM-DD" key for the app-day containing `now`. */
 export function appDayKey(now: Date, dayStartHour: number): string {
-  const d = appDayDate(now, dayStartHour);
+  return dateKey(appDayDate(now, dayStartHour));
+}
+
+/** "YYYY-MM-DD" for a calendar date (local time). */
+export function dateKey(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mm}-${dd}`;

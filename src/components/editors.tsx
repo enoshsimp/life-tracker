@@ -1,5 +1,5 @@
-import type { Habit, Settings, WorkStream } from '../lib/types';
-import { blankHabit } from '../lib/defaults';
+import type { Frequency, Habit, Settings, TimeOfDay, WorkStream } from '../lib/types';
+import { blankHabit, TIMES_OF_DAY } from '../lib/defaults';
 import { newId } from '../lib/id';
 import { AddButton, DayPicker, Field, IconButton, Segmented, TextInput, Toggle, inputClass } from './ui';
 
@@ -17,6 +17,82 @@ function move<T>(list: T[], from: number, to: number): T[] {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+/* ---------- Pieces shared by the habit and gym editors ---------- */
+
+function AreaSelect({ settings, value, onChange }: { settings: Settings; value: string; onChange: (id: string) => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass} aria-label="Life area">
+      {settings.areas.map((a, i) => (
+        <option key={a.id} value={a.id}>
+          {a.name.trim() || `Area ${i + 1}`}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function TimeOfDayPicker({ value, onChange }: { value: TimeOfDay; onChange: (t: TimeOfDay) => void }) {
+  return (
+    <Segmented
+      compact
+      ariaLabel="Time of day"
+      value={value}
+      onChange={onChange}
+      options={TIMES_OF_DAY.map((t) => ({ value: t.id, label: t.label }))}
+    />
+  );
+}
+
+function FrequencyEditor({
+  value,
+  onChange,
+  weekStartsOn,
+}: {
+  value: Frequency;
+  onChange: (f: Frequency) => void;
+  weekStartsOn: 0 | 1;
+}) {
+  const setType = (type: Frequency['type']) => {
+    if (type === value.type) return;
+    if (type === 'daily') onChange({ type: 'daily' });
+    else if (type === 'days') onChange({ type: 'days', days: [1, 2, 3, 4, 5] });
+    else onChange({ type: 'weekly', times: 3 });
+  };
+
+  return (
+    <div className="space-y-2">
+      <Segmented
+        compact
+        ariaLabel="How often"
+        value={value.type}
+        onChange={setType}
+        options={[
+          { value: 'daily', label: 'Every day' },
+          { value: 'days', label: 'Some days' },
+          { value: 'weekly', label: 'Times a week' },
+        ]}
+      />
+      {value.type === 'days' && (
+        <DayPicker days={value.days} weekStartsOn={weekStartsOn} onChange={(days) => onChange({ type: 'days', days })} />
+      )}
+      {value.type === 'weekly' && (
+        <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 px-2 py-1.5">
+          <IconButton label="Fewer times" disabled={value.times <= 1} onClick={() => onChange({ type: 'weekly', times: value.times - 1 })}>
+            <path d="M5 12h14" />
+          </IconButton>
+          <p className="text-sm">
+            <span className="text-lg font-black tabular-nums">{value.times}</span>
+            <span className="text-muted"> times a week</span>
+          </p>
+          <IconButton label="More times" disabled={value.times >= 7} onClick={() => onChange({ type: 'weekly', times: value.times + 1 })}>
+            <path d="M12 5v14M5 12h14" />
+          </IconButton>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ---------- Habits (everything except the gym habit) ---------- */
@@ -73,17 +149,18 @@ export function HabitsEditor({ settings, onChange }: EditorProps) {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Segmented
-              ariaLabel="When this habit is scheduled"
-              value={h.days ? 'some' : 'every'}
-              onChange={(v) => patch(h.id, { days: v === 'every' ? undefined : [1, 2, 3, 4, 5] })}
-              options={[
-                { value: 'every', label: 'Every day' },
-                { value: 'some', label: 'Some days' },
-              ]}
-            />
-            {h.days && <DayPicker days={h.days} weekStartsOn={settings.weekStartsOn} onChange={(days) => patch(h.id, { days })} />}
+          <Field label="Life area">
+            <AreaSelect settings={settings} value={h.areaId} onChange={(areaId) => patch(h.id, { areaId })} />
+          </Field>
+
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">Time of day</span>
+            <TimeOfDayPicker value={h.time} onChange={(time) => patch(h.id, { time })} />
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">How often</span>
+            <FrequencyEditor value={h.frequency} weekStartsOn={settings.weekStartsOn} onChange={(frequency) => patch(h.id, { frequency })} />
           </div>
         </div>
       ))}
@@ -94,32 +171,53 @@ export function HabitsEditor({ settings, onChange }: EditorProps) {
 
 /* ---------- Gym ---------- */
 
-export function GymEditor({ settings, onChange }: EditorProps) {
+/** The setup wizard hides the life area (gym is always Health there); Settings shows it. */
+export function GymEditor({ settings, onChange, showArea = true }: EditorProps & { showArea?: boolean }) {
   const gym = settings.habits.find((h) => h.gym);
 
   const setGym = (next: Habit | undefined) =>
     onChange((s) => ({ ...s, habits: [...s.habits.filter((h) => !h.gym), ...(next ? [next] : [])] }));
+
+  const sessions = !gym
+    ? 0
+    : gym.frequency.type === 'daily'
+      ? 7
+      : gym.frequency.type === 'days'
+        ? gym.frequency.days.length
+        : gym.frequency.times;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4">
         <div>
           <p className="font-semibold">Track gym sessions</p>
-          <p className="text-xs text-muted">Shows on Today only on your gym days</p>
+          <p className="text-xs text-muted">Pick set days, or a number of sessions a week</p>
         </div>
         <Toggle
           label="Track gym sessions"
           on={!!gym}
           onChange={(on) =>
-            setGym(on ? { ...blankHabit(), name: 'Gym', fullLabel: 'Full session', minLabel: 'Short session', days: [1, 3, 5], gym: true } : undefined)
+            setGym(
+              on
+                ? {
+                    ...blankHabit(),
+                    name: 'Gym',
+                    fullLabel: 'Full session',
+                    minLabel: 'Short session',
+                    areaId: 'health',
+                    frequency: { type: 'days', days: [1, 3, 5] },
+                    gym: true,
+                  }
+                : undefined,
+            )
           }
         />
       </div>
 
       {gym && (
         <div className="space-y-4 rounded-2xl border border-line bg-surface p-4">
-          <Field label="Gym days" hint={`${gym.days?.length ?? 0} sessions a week`}>
-            <DayPicker days={gym.days ?? []} weekStartsOn={settings.weekStartsOn} onChange={(days) => setGym({ ...gym, days })} />
+          <Field label="How often" hint={`${sessions} sessions a week`}>
+            <FrequencyEditor value={gym.frequency} weekStartsOn={settings.weekStartsOn} onChange={(frequency) => setGym({ ...gym, frequency })} />
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Full session">
@@ -129,8 +227,35 @@ export function GymEditor({ settings, onChange }: EditorProps) {
               <TextInput value={gym.minLabel ?? ''} onChange={(minLabel) => setGym({ ...gym, minLabel })} placeholder="Optional" />
             </Field>
           </div>
+          {showArea && (
+            <Field label="Life area">
+              <AreaSelect settings={settings} value={gym.areaId} onChange={(areaId) => setGym({ ...gym, areaId })} />
+            </Field>
+          )}
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">Time of day</span>
+            <TimeOfDayPicker value={gym.time} onChange={(time) => setGym({ ...gym, time })} />
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- Life areas (rename only; there are always 8) ---------- */
+
+export function AreasEditor({ settings, onChange }: EditorProps) {
+  return (
+    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-surface p-4">
+      {settings.areas.map((a, i) => (
+        <TextInput
+          key={a.id}
+          value={a.name}
+          placeholder={`Area ${i + 1}`}
+          ariaLabel={`Life area ${i + 1} name`}
+          onChange={(name) => onChange((s) => ({ ...s, areas: s.areas.map((x) => (x.id === a.id ? { ...x, name } : x)) }))}
+        />
+      ))}
     </div>
   );
 }

@@ -28,7 +28,7 @@ Bottom tabs (never more than 5). Each tab appears when its stage is built.
 | **Money** | Monthly snapshot, spending quick-add and the monthly summary |
 | **More** | Inbox, Reviews, Reward shop, Reading, Stats and Settings |
 
-A floating **+** button on every screen opens **quick capture**.
+A raised **+** button in the middle of the bottom bar, on every screen, opens **quick capture**. (It sits in the bar rather than floating over the page, so it never covers a tick button.)
 
 ---
 

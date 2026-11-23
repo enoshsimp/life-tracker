@@ -41,11 +41,14 @@ export function Segmented<T extends string | number>({
   options,
   onChange,
   ariaLabel,
+  compact,
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   ariaLabel?: string;
+  /** Smaller text and padding, for 3–4 options on a phone. */
+  compact?: boolean;
 }) {
   return (
     <div role="radiogroup" aria-label={ariaLabel} className="flex rounded-xl border border-line bg-surface-2 p-1">
@@ -56,7 +59,7 @@ export function Segmented<T extends string | number>({
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+          className={`flex-1 rounded-lg py-1.5 font-semibold transition-colors ${compact ? 'px-1 text-xs' : 'px-3 text-sm'} ${
             value === o.value ? 'bg-accent text-bg' : 'text-muted hover:text-text'
           }`}
         >
@@ -112,10 +115,12 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-surface-2 border border-line'}`}
+      // Same 1px border in both states, so the knob doesn't shift. Inside it the track is 46×26px.
+      className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors ${on ? 'border-transparent bg-accent' : 'border-line bg-surface-2'}`}
     >
+      {/* Pinned to the track's left edge, then slid 3px (off) or 23px (on): a 3px gap on every side. */}
       <span
-        className={`absolute top-1 h-5 w-5 rounded-full bg-text transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`}
+        className={`absolute left-0 top-[3px] h-5 w-5 rounded-full bg-text transition-transform ${on ? 'translate-x-[23px]' : 'translate-x-[3px]'}`}
       />
     </button>
   );

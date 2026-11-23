@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AppData } from './types';
-import { createDefaultData } from './defaults';
+import { createDefaultData, defaultAreas, DEFAULT_AREA_ID } from './defaults';
 
 /** Everything is saved under this one localStorage key. */
 const STORAGE_KEY = 'life-tracker';
@@ -13,7 +13,18 @@ function migrate(raw: any): AppData | null {
     // Version 1 only ever held placeholder settings, so setup still needs to run.
     d = { ...d, version: 2, setupDone: false, settings: { ...d.settings, weekStartsOn: 1 } };
   }
-  return d.version === 2 ? (d as AppData) : null;
+  if (d.version === 2) {
+    // Version 3 adds life areas, time of day, frequency and the Inbox.
+    // Existing habits keep their schedule and go to area Self, time Anytime.
+    const habits = (d.settings.habits ?? []).map(({ days, ...h }: any) => ({
+      ...h,
+      areaId: DEFAULT_AREA_ID,
+      time: 'anytime',
+      frequency: Array.isArray(days) ? { type: 'days', days } : { type: 'daily' },
+    }));
+    d = { ...d, version: 3, settings: { ...d.settings, areas: defaultAreas(), habits }, inbox: [] };
+  }
+  return d.version === 3 ? (d as AppData) : null;
 }
 
 function load(): AppData {

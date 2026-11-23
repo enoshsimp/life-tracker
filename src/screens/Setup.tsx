@@ -9,6 +9,8 @@ export function cleanSettings(s: Settings): Settings {
     ...s,
     habits: s.habits
       .map((h) => ({ ...h, name: h.name.trim(), fullLabel: h.fullLabel?.trim(), minLabel: h.minLabel?.trim() }))
+      // The wizard doesn't ask for the gym's life area: it's always Health (changeable later in Settings).
+      .map((h) => (h.gym ? { ...h, areaId: 'health' } : h))
       .filter((h) => h.name),
     workStreams: s.workStreams.map((w) => ({ ...w, name: w.name.trim() })).filter((w) => w.name),
   };
@@ -23,10 +25,14 @@ const steps: { title: string; intro: string; Editor?: ComponentType<EditorProps>
   {
     title: 'Your daily habits',
     intro:
-      'Add the habits you want to tick off. A Full / Minimum habit has a proper version and a bare-minimum version for hard days. Yes / No suits simple check-ins.',
+      'Add the habits you want to tick off. A Full / Minimum habit has a proper version and a bare-minimum version for hard days. Yes / No suits simple check-ins. Give each one a life area, a time of day and how often it’s due.',
     Editor: HabitsEditor,
   },
-  { title: 'Gym', intro: 'Pick your gym days. The gym only appears on Today on those days.', Editor: GymEditor },
+  {
+    title: 'Gym',
+    intro: 'Pick set gym days, or a number of sessions a week that you can fit in on any day.',
+    Editor: (props) => <GymEditor {...props} showArea={false} />,
+  },
   {
     title: 'Sleep',
     intro: 'Tap "Woke up" and "Going to bed" each day to log the time. On or before these times earns the full version.',

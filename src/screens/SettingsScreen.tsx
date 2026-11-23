@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { AppData, Settings } from '../lib/types';
 import { createDefaultData } from '../lib/defaults';
-import { DayWeekEditor, GymEditor, HabitsEditor, SleepEditor, WorkStreamsEditor } from '../components/editors';
+import { AreasEditor, DayWeekEditor, GymEditor, HabitsEditor, SleepEditor, WorkStreamsEditor } from '../components/editors';
 
 /** Every personal value, editable. Changes save and apply to Today straight away. */
 export function SettingsScreen({ data, update }: { data: AppData; update: (fn: (d: AppData) => AppData) => void }) {
@@ -17,13 +17,13 @@ export function SettingsScreen({ data, update }: { data: AppData; update: (fn: (
 
   return (
     <div className="space-y-8">
-      <header className="pt-2">
-        <h1 className="text-3xl font-black tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted">Changes save automatically and only live on this device.</p>
-      </header>
+      <p className="text-sm text-muted">Changes save automatically and only live on this device.</p>
 
       <Section title="Habits">
         <HabitsEditor {...props} />
+      </Section>
+      <Section title="Life areas">
+        <AreasEditor {...props} />
       </Section>
       <Section title="Gym">
         <GymEditor {...props} />

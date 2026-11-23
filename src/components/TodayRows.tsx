@@ -18,22 +18,46 @@ function Card({ done, children }: { done: boolean; children: ReactNode }) {
 
 /* ---------- Habit with full/minimum versions, or a yes/no check ---------- */
 
+/** Small line under a habit's name: its life area, its weekly progress, and the version label. */
+function HabitMeta({ areaName, weekly, label }: { areaName: string; weekly?: { count: number; target: number }; label?: string }) {
+  return (
+    <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted">
+      <span className="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 font-semibold">{areaName}</span>
+      {weekly && (
+        <span className={`shrink-0 font-bold tabular-nums ${weekly.count >= weekly.target ? 'text-full' : 'text-text'}`}>
+          {weekly.count}/{weekly.target} this week
+        </span>
+      )}
+      {label && <span className="truncate">{label}</span>}
+    </p>
+  );
+}
+
 export function HabitRow({
   habit,
   tick,
   onChange,
+  areaName,
+  weekly,
 }: {
   habit: Habit;
   tick: TickLevel | undefined;
   onChange: (next: TickLevel | undefined) => void;
+  areaName: string;
+  /** Progress for a times-per-week habit. */
+  weekly?: { count: number; target: number };
 }) {
   const toggle = (level: TickLevel) => onChange(tick === level ? undefined : level);
+  const weekDone = !!weekly && weekly.count >= weekly.target;
 
   if (habit.kind === 'check') {
     return (
-      <Card done={!!tick}>
+      <Card done={!!tick || weekDone}>
         <div className="flex items-center justify-between gap-3">
-          <p className="font-semibold">{habit.name}</p>
+          <div className="min-w-0 space-y-1">
+            <p className="font-semibold">{habit.name}</p>
+            <HabitMeta areaName={areaName} weekly={weekly} />
+          </div>
           <TickButton active={tick === 'full'} tone="full" onToggle={() => toggle('full')} ariaLabel={`${habit.name}: yes`}>
             Yes
           </TickButton>
@@ -43,13 +67,11 @@ export function HabitRow({
   }
 
   return (
-    <Card done={!!tick}>
+    <Card done={!!tick || weekDone}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-1">
           <p className="font-semibold">{habit.name}</p>
-          <p className="truncate text-xs text-muted">
-            {tick === 'min' ? habit.minLabel : habit.fullLabel}
-          </p>
+          <HabitMeta areaName={areaName} weekly={weekly} label={tick === 'min' ? habit.minLabel : habit.fullLabel} />
         </div>
         <div className="flex gap-2">
           <TickButton active={tick === 'min'} tone="min" onToggle={() => toggle('min')} ariaLabel={`${habit.name}: minimum`}>

@@ -4,6 +4,23 @@ export type HabitKind = 'fullmin' | 'check';
 /** What was done for a habit on a day. A yes/no check is stored as 'full'. */
 export type TickLevel = 'full' | 'min';
 
+/** The part of the day a habit belongs to. Today groups habits under these headings. */
+export type TimeOfDay = 'morning' | 'work' | 'evening' | 'anytime';
+
+/** How often a habit is due. */
+export type Frequency =
+  | { type: 'daily' }
+  /** Only on these weekdays (0 = Sunday … 6 = Saturday). */
+  | { type: 'days'; days: number[] }
+  /** Any day, this many times per week. */
+  | { type: 'weekly'; times: number };
+
+export interface LifeArea {
+  /** Fixed id; only the name can change. */
+  id: string;
+  name: string;
+}
+
 export interface Habit {
   id: string;
   name: string;
@@ -12,9 +29,10 @@ export interface Habit {
   fullLabel?: string;
   /** Short description of the minimum version (fullmin habits only). */
   minLabel?: string;
-  /** Weekdays the habit is scheduled (0 = Sunday … 6 = Saturday). Missing = every day. */
-  days?: number[];
-  /** Marks the gym habit, which is set up on its own and counted on the Body tab. */
+  areaId: string;
+  time: TimeOfDay;
+  frequency: Frequency;
+  /** Marks the gym habit, which is set up on its own and counted on the Health tab. */
   gym?: boolean;
 }
 
@@ -28,6 +46,7 @@ export interface Settings {
   dayStartHour: number;
   /** First day of the week: 1 = Monday, 0 = Sunday. */
   weekStartsOn: 0 | 1;
+  areas: LifeArea[];
   habits: Habit[];
   workStreams: WorkStream[];
   /** Latest wake time ("HH:MM") that still earns the full version. */
@@ -54,11 +73,24 @@ export interface DayRecord {
   priorities: Record<string, Priority>;
 }
 
+export type CaptureTag = 'idea' | 'task' | 'reminder' | 'explore';
+
+export interface InboxItem {
+  id: string;
+  text: string;
+  tag?: CaptureTag;
+  /** ISO timestamp. */
+  createdAt: string;
+  done: boolean;
+}
+
 export interface AppData {
-  version: 2;
+  version: 3;
   /** False until the first-run setup wizard has been completed. */
   setupDone: boolean;
   settings: Settings;
   /** Keyed by app-day, "YYYY-MM-DD". */
   days: Record<string, DayRecord>;
+  /** Quick captures, newest first. */
+  inbox: InboxItem[];
 }

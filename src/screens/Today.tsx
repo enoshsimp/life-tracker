@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import type { AppData, DayRecord, TickLevel } from '../lib/types';
+import type { AppData, DayRecord, Habit, TickLevel, TimeOfDay } from '../lib/types';
 import { appDayDate, appDayKey, getNow, isOnTime } from '../lib/day';
+import { TIMES_OF_DAY } from '../lib/defaults';
+import { isShownOn, weeklyCount } from '../lib/schedule';
 import { HabitRow, PriorityRow, TimeRow } from '../components/TodayRows';
 
 const emptyDay = (): DayRecord => ({ ticks: {}, priorities: {} });
@@ -37,9 +39,16 @@ export function Today({
   const beforeReset = now.getHours() < settings.dayStartHour;
 
   // Rows still being named in Settings are left out until they have a name.
-  const habits = settings.habits.filter((h) => h.name.trim() && (!h.days || h.days.includes(date.getDay())));
+  const habits = settings.habits.filter((h) => h.name.trim() && isShownOn(h, date));
   const workStreams = settings.workStreams.filter((w) => w.name.trim());
   const hasAnyHabits = settings.habits.some((h) => h.name.trim());
+
+  const areaName = (id: string) => {
+    const i = settings.areas.findIndex((a) => a.id === id);
+    return i < 0 ? '' : settings.areas[i].name.trim() || `Area ${i + 1}`;
+  };
+  const weekly = (h: Habit) =>
+    h.frequency.type === 'weekly' ? { count: weeklyCount(data, h.id, date), target: h.frequency.times } : undefined;
 
   const editDay = (fn: (d: DayRecord) => DayRecord) =>
     update((d) => ({ ...d, days: { ...d.days, [key]: fn(d.days[key] ?? emptyDay()) } }));
@@ -67,13 +76,73 @@ export function Today({
     });
 
   // Progress: every habit shown today, wake, bed and each work-stream priority.
+  // A times-per-week habit counts as done once ticked today or once its weekly target is met.
+  const habitDone = (h: Habit) => {
+    if (day.ticks[h.id]) return true;
+    const w = weekly(h);
+    return !!w && w.count >= w.target;
+  };
   const total = habits.length + 2 + workStreams.length;
   const done =
-    habits.filter((h) => day.ticks[h.id]).length +
+    habits.filter(habitDone).length +
     (day.wake ? 1 : 0) +
     (day.bed ? 1 : 0) +
     workStreams.filter((w) => day.priorities[w.id]?.done).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
+
+  const habitRows = (time: TimeOfDay) =>
+    habits
+      .filter((h) => h.time === time)
+      .map((h) => (
+        <HabitRow
+          key={h.id}
+          habit={h}
+          tick={day.ticks[h.id]}
+          onChange={(lvl) => setTick(h.id, lvl)}
+          areaName={areaName(h.areaId)}
+          weekly={weekly(h)}
+        />
+      ));
+
+  // Fixed rows that belong to a time of day: wake in the morning, priorities at work, bed in the evening.
+  const groups: Record<TimeOfDay, ReactNode[]> = {
+    morning: [
+      <TimeRow
+        key="wake"
+        title="Wake time"
+        action="Woke up"
+        deadline={settings.wakeBy}
+        log={day.wake}
+        onLog={() => logTime('wake', settings.wakeBy)}
+        onClear={() => clearTime('wake')}
+      />,
+      ...habitRows('morning'),
+    ],
+    work: [
+      ...workStreams.map((w) => (
+        <PriorityRow
+          key={w.id}
+          streamName={w.name}
+          priority={day.priorities[w.id] ?? { text: '', done: false }}
+          onChange={(p) => editDay((d) => ({ ...d, priorities: { ...d.priorities, [w.id]: p } }))}
+        />
+      )),
+      ...habitRows('work'),
+    ],
+    evening: [
+      ...habitRows('evening'),
+      <TimeRow
+        key="bed"
+        title="Bedtime"
+        action="Going to bed"
+        deadline={settings.bedBy}
+        log={day.bed}
+        onLog={() => logTime('bed', settings.bedBy)}
+        onClear={() => clearTime('bed')}
+      />,
+    ],
+    anytime: habitRows('anytime'),
+  };
 
   return (
     <div className="space-y-6">
@@ -104,54 +173,23 @@ export function Today({
         )}
       </header>
 
-      {habits.length > 0 ? (
-        <Section title="Habits">
-          {habits.map((h) => (
-            <HabitRow key={h.id} habit={h} tick={day.ticks[h.id]} onChange={(lvl) => setTick(h.id, lvl)} />
-          ))}
-        </Section>
-      ) : (
-        !hasAnyHabits && (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="w-full rounded-2xl border border-dashed border-line p-4 text-left text-sm text-muted hover:border-accent hover:text-accent"
-          >
-            No habits yet. Add some in Settings →
-          </button>
-        )
+      {!hasAnyHabits && (
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="w-full rounded-2xl border border-dashed border-line p-4 text-left text-sm text-muted hover:border-accent hover:text-accent"
+        >
+          No habits yet. Add some in Settings →
+        </button>
       )}
 
-      <Section title="Sleep">
-        <TimeRow
-          title="Wake time"
-          action="Woke up"
-          deadline={settings.wakeBy}
-          log={day.wake}
-          onLog={() => logTime('wake', settings.wakeBy)}
-          onClear={() => clearTime('wake')}
-        />
-        <TimeRow
-          title="Bedtime"
-          action="Going to bed"
-          deadline={settings.bedBy}
-          log={day.bed}
-          onLog={() => logTime('bed', settings.bedBy)}
-          onClear={() => clearTime('bed')}
-        />
-      </Section>
-
-      {workStreams.length > 0 && (
-      <Section title="Top priorities">
-        {workStreams.map((w) => (
-          <PriorityRow
-            key={w.id}
-            streamName={w.name}
-            priority={day.priorities[w.id] ?? { text: '', done: false }}
-            onChange={(p) => editDay((d) => ({ ...d, priorities: { ...d.priorities, [w.id]: p } }))}
-          />
-        ))}
-      </Section>
+      {TIMES_OF_DAY.map(
+        (t) =>
+          groups[t.id].length > 0 && (
+            <Section key={t.id} title={t.label}>
+              {groups[t.id]}
+            </Section>
+          ),
       )}
     </div>
   );
