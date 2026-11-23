@@ -5,13 +5,24 @@ import { createDefaultData } from './defaults';
 /** Everything is saved under this one localStorage key. */
 const STORAGE_KEY = 'life-tracker';
 
+/** Upgrades older saved data to the current version, one version at a time. */
+function migrate(raw: any): AppData | null {
+  if (!raw || typeof raw !== 'object' || !raw.settings || !raw.days) return null;
+  let d = raw;
+  if (d.version === 1) {
+    // Version 1 only ever held placeholder settings, so setup still needs to run.
+    d = { ...d, version: 2, setupDone: false, settings: { ...d.settings, weekStartsOn: 1 } };
+  }
+  return d.version === 2 ? (d as AppData) : null;
+}
+
 function load(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createDefaultData();
-    const parsed = JSON.parse(raw) as Partial<AppData>;
-    // Future versions upgrade older data here, one version at a time.
-    if (parsed.version === 1 && parsed.settings && parsed.days) return parsed as AppData;
+    if (raw) {
+      const data = migrate(JSON.parse(raw));
+      if (data) return data;
+    }
   } catch {
     // Unreadable data: fall through to a fresh start rather than crash.
   }

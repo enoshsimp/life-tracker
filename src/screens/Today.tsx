@@ -20,7 +20,15 @@ function useNow() {
   return now;
 }
 
-export function Today({ data, update }: { data: AppData; update: (fn: (d: AppData) => AppData) => void }) {
+export function Today({
+  data,
+  update,
+  onOpenSettings,
+}: {
+  data: AppData;
+  update: (fn: (d: AppData) => AppData) => void;
+  onOpenSettings: () => void;
+}) {
   const now = useNow();
   const { settings } = data;
   const key = appDayKey(now, settings.dayStartHour);
@@ -28,7 +36,10 @@ export function Today({ data, update }: { data: AppData; update: (fn: (d: AppDat
   const day = data.days[key] ?? emptyDay();
   const beforeReset = now.getHours() < settings.dayStartHour;
 
-  const habits = settings.habits.filter((h) => !h.days || h.days.includes(date.getDay()));
+  // Rows still being named in Settings are left out until they have a name.
+  const habits = settings.habits.filter((h) => h.name.trim() && (!h.days || h.days.includes(date.getDay())));
+  const workStreams = settings.workStreams.filter((w) => w.name.trim());
+  const hasAnyHabits = settings.habits.some((h) => h.name.trim());
 
   const editDay = (fn: (d: DayRecord) => DayRecord) =>
     update((d) => ({ ...d, days: { ...d.days, [key]: fn(d.days[key] ?? emptyDay()) } }));
@@ -56,12 +67,12 @@ export function Today({ data, update }: { data: AppData; update: (fn: (d: AppDat
     });
 
   // Progress: every habit shown today, wake, bed and each work-stream priority.
-  const total = habits.length + 2 + settings.workStreams.length;
+  const total = habits.length + 2 + workStreams.length;
   const done =
     habits.filter((h) => day.ticks[h.id]).length +
     (day.wake ? 1 : 0) +
     (day.bed ? 1 : 0) +
-    settings.workStreams.filter((w) => day.priorities[w.id]?.done).length;
+    workStreams.filter((w) => day.priorities[w.id]?.done).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
@@ -93,11 +104,23 @@ export function Today({ data, update }: { data: AppData; update: (fn: (d: AppDat
         )}
       </header>
 
-      <Section title="Habits">
-        {habits.map((h) => (
-          <HabitRow key={h.id} habit={h} tick={day.ticks[h.id]} onChange={(lvl) => setTick(h.id, lvl)} />
-        ))}
-      </Section>
+      {habits.length > 0 ? (
+        <Section title="Habits">
+          {habits.map((h) => (
+            <HabitRow key={h.id} habit={h} tick={day.ticks[h.id]} onChange={(lvl) => setTick(h.id, lvl)} />
+          ))}
+        </Section>
+      ) : (
+        !hasAnyHabits && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="w-full rounded-2xl border border-dashed border-line p-4 text-left text-sm text-muted hover:border-accent hover:text-accent"
+          >
+            No habits yet. Add some in Settings →
+          </button>
+        )
+      )}
 
       <Section title="Sleep">
         <TimeRow
@@ -118,8 +141,9 @@ export function Today({ data, update }: { data: AppData; update: (fn: (d: AppDat
         />
       </Section>
 
+      {workStreams.length > 0 && (
       <Section title="Top priorities">
-        {settings.workStreams.map((w) => (
+        {workStreams.map((w) => (
           <PriorityRow
             key={w.id}
             streamName={w.name}
@@ -128,6 +152,7 @@ export function Today({ data, update }: { data: AppData; update: (fn: (d: AppDat
           />
         ))}
       </Section>
+      )}
     </div>
   );
 }

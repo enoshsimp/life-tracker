@@ -14,6 +14,8 @@ export interface Habit {
   minLabel?: string;
   /** Weekdays the habit is scheduled (0 = Sunday … 6 = Saturday). Missing = every day. */
   days?: number[];
+  /** Marks the gym habit, which is set up on its own and counted on the Body tab. */
+  gym?: boolean;
 }
 
 export interface WorkStream {
@@ -24,6 +26,8 @@ export interface WorkStream {
 export interface Settings {
   /** Hour (0–23) when a new app-day begins. */
   dayStartHour: number;
+  /** First day of the week: 1 = Monday, 0 = Sunday. */
+  weekStartsOn: 0 | 1;
   habits: Habit[];
   workStreams: WorkStream[];
   /** Latest wake time ("HH:MM") that still earns the full version. */
@@ -51,7 +55,9 @@ export interface DayRecord {
 }
 
 export interface AppData {
-  version: 1;
+  version: 2;
+  /** False until the first-run setup wizard has been completed. */
+  setupDone: boolean;
   settings: Settings;
   /** Keyed by app-day, "YYYY-MM-DD". */
   days: Record<string, DayRecord>;
