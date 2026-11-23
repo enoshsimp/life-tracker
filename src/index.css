@@ -67,11 +67,67 @@ button {
   animation: check-draw 280ms ease-out forwards;
 }
 
+/* Points pill: rises and fades. */
+@keyframes float-up {
+  0% { transform: translateY(12px) scale(0.8); opacity: 0; }
+  15% { transform: translateY(0) scale(1.08); opacity: 1; }
+  30% { transform: translateY(0) scale(1); }
+  80% { opacity: 1; }
+  100% { transform: translateY(-28px); opacity: 0; }
+}
+
+/* Level-up / badge card: zooms in with a little overshoot. */
+@keyframes zoom-in {
+  0% { transform: scale(0.4) rotate(-6deg); opacity: 0; }
+  60% { transform: scale(1.08) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* Confetti: each piece flies out from the centre (direction set per piece). */
+@keyframes confetti {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(540deg); opacity: 0; }
+}
+
+/* Bonus shimmer for double points. */
+@keyframes shimmer {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
+}
+
+.animate-float-up {
+  animation: float-up 1600ms ease-out forwards;
+}
+
+.animate-zoom-in {
+  animation: zoom-in 520ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+.confetti-piece {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: confetti 1100ms cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+
+.animate-shimmer {
+  animation: shimmer 500ms ease-in-out 3;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pop,
   .burst-ring,
-  .check-draw {
+  .check-draw,
+  .animate-float-up,
+  .animate-zoom-in,
+  .animate-shimmer {
     animation: none;
+  }
+  .confetti-piece {
+    display: none;
   }
   .burst-ring {
     display: none;

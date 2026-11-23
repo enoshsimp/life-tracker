@@ -36,6 +36,42 @@ export function TextInput({
   );
 }
 
+/** A whole-number box. Empty or invalid input keeps the last good value. */
+export function NumberInput({
+  value,
+  onChange,
+  min = 0,
+  max = 9999,
+  ariaLabel,
+  suffix,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  ariaLabel?: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={value}
+        aria-label={ariaLabel}
+        onChange={(e) => {
+          const n = Math.round(Number(e.target.value));
+          if (e.target.value !== '' && Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
+        }}
+        className={`${inputClass} tabular-nums ${suffix ? 'pr-12' : ''}`}
+      />
+      {suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">{suffix}</span>}
+    </div>
+  );
+}
+
 export function Segmented<T extends string | number>({
   value,
   options,

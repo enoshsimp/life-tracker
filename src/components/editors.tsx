@@ -1,7 +1,7 @@
 import type { Frequency, Habit, Settings, TimeOfDay, WorkStream } from '../lib/types';
-import { blankHabit, TIMES_OF_DAY } from '../lib/defaults';
+import { blankHabit, TIMES_OF_DAY, WORK_AREA_ID } from '../lib/defaults';
 import { newId } from '../lib/id';
-import { AddButton, DayPicker, Field, IconButton, Segmented, TextInput, Toggle, inputClass } from './ui';
+import { AddButton, DayPicker, Field, IconButton, NumberInput, Segmented, TextInput, Toggle, inputClass } from './ui';
 
 /**
  * Editors for each group of settings. The setup wizard and the Settings
@@ -95,6 +95,27 @@ function FrequencyEditor({
   );
 }
 
+/** Points for a habit's full and minimum versions (one value for a yes/no habit). */
+function PointsFields({ habit, onChange }: { habit: Habit; onChange: (p: Partial<Habit>) => void }) {
+  if (habit.kind === 'check') {
+    return (
+      <Field label="Points">
+        <NumberInput value={habit.fullPoints} onChange={(fullPoints) => onChange({ fullPoints })} ariaLabel="Points" suffix="pts" />
+      </Field>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Field label="Full points">
+        <NumberInput value={habit.fullPoints} onChange={(fullPoints) => onChange({ fullPoints })} ariaLabel="Full points" suffix="pts" />
+      </Field>
+      <Field label="Minimum points">
+        <NumberInput value={habit.minPoints} onChange={(minPoints) => onChange({ minPoints })} ariaLabel="Minimum points" suffix="pts" />
+      </Field>
+    </div>
+  );
+}
+
 /* ---------- Habits (everything except the gym habit) ---------- */
 
 export function HabitsEditor({ settings, onChange }: EditorProps) {
@@ -148,6 +169,8 @@ export function HabitsEditor({ settings, onChange }: EditorProps) {
               </Field>
             </div>
           )}
+
+          <PointsFields habit={h} onChange={(p) => patch(h.id, p)} />
 
           <Field label="Life area">
             <AreaSelect settings={settings} value={h.areaId} onChange={(areaId) => patch(h.id, { areaId })} />
@@ -227,6 +250,7 @@ export function GymEditor({ settings, onChange, showArea = true }: EditorProps &
               <TextInput value={gym.minLabel ?? ''} onChange={(minLabel) => setGym({ ...gym, minLabel })} placeholder="Optional" />
             </Field>
           </div>
+          <PointsFields habit={gym} onChange={(p) => setGym({ ...gym, ...p })} />
           {showArea && (
             <Field label="Life area">
               <AreaSelect settings={settings} value={gym.areaId} onChange={(areaId) => setGym({ ...gym, areaId })} />
@@ -284,13 +308,18 @@ export function WorkStreamsEditor({ settings, onChange }: EditorProps) {
   return (
     <div className="space-y-2">
       {streams.map((w, i) => (
-        <div key={w.id} className="flex items-center gap-1 rounded-2xl border border-line bg-surface p-2 pl-3">
-          <div className="flex-1">
+        <div key={w.id} className="flex items-start gap-1 rounded-2xl border border-line bg-surface p-2 pl-3">
+          <div className="flex-1 space-y-2">
             <TextInput
               value={w.name}
               onChange={(name) => setStreams((l) => l.map((x) => (x.id === w.id ? { ...x, name } : x)))}
               placeholder={`Work stream ${String.fromCharCode(65 + (i % 26))}`}
               ariaLabel="Work stream name"
+            />
+            <AreaSelect
+              settings={settings}
+              value={w.areaId}
+              onChange={(areaId) => setStreams((l) => l.map((x) => (x.id === w.id ? { ...x, areaId } : x)))}
             />
           </div>
           <IconButton label="Move up" disabled={i === 0} onClick={() => setStreams((l) => move(l, i, i - 1))}>
@@ -304,7 +333,42 @@ export function WorkStreamsEditor({ settings, onChange }: EditorProps) {
           </IconButton>
         </div>
       ))}
-      <AddButton onClick={() => setStreams((l) => [...l, { id: newId(), name: '' }])}>Add a work stream</AddButton>
+      <AddButton onClick={() => setStreams((l) => [...l, { id: newId(), name: '', areaId: WORK_AREA_ID }])}>Add a work stream</AddButton>
+    </div>
+  );
+}
+
+/* ---------- Points and bonuses (per-habit points live on each habit) ---------- */
+
+export function PointsEditor({ settings, onChange }: EditorProps) {
+  const g = settings.game;
+  const set = (p: Partial<typeof g>) => onChange((s) => ({ ...s, game: { ...s.game, ...p } }));
+  return (
+    <div className="space-y-4 rounded-2xl border border-line bg-surface p-4">
+      <p className="text-xs text-muted">Each habit's own points are set on the habit above.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Wake / bed on time">
+          <NumberInput value={g.sleepFull} onChange={(sleepFull) => set({ sleepFull })} ariaLabel="Wake or bed on time points" suffix="pts" />
+        </Field>
+        <Field label="Wake / bed late">
+          <NumberInput value={g.sleepMin} onChange={(sleepMin) => set({ sleepMin })} ariaLabel="Wake or bed late points" suffix="pts" />
+        </Field>
+        <Field label="Top priority done">
+          <NumberInput value={g.priorityPoints} onChange={(priorityPoints) => set({ priorityPoints })} ariaLabel="Top priority points" suffix="pts" />
+        </Field>
+        <Field label="Weekly target hit">
+          <NumberInput value={g.weeklyBonus} onChange={(weeklyBonus) => set({ weeklyBonus })} ariaLabel="Weekly target bonus" suffix="pts" />
+        </Field>
+      </div>
+      <Field label="Double-points chance" hint="The chance that any tick earns double points">
+        <NumberInput
+          value={Math.round(g.bonusChance * 100)}
+          onChange={(pct) => set({ bonusChance: pct / 100 })}
+          max={100}
+          ariaLabel="Double-points chance"
+          suffix="%"
+        />
+      </Field>
     </div>
   );
 }

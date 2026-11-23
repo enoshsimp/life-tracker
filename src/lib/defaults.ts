@@ -1,5 +1,6 @@
-import type { AppData, Habit, LifeArea, Settings, TimeOfDay } from './types';
+import type { AppData, GameSettings, Habit, LifeArea, Settings, TimeOfDay } from './types';
 import { newId } from './id';
+import { dateKey } from './day';
 
 /**
  * Neutral starting values only. Personal values are entered by the user in
@@ -21,6 +22,18 @@ export function defaultAreas(): LifeArea[] {
 }
 
 export const DEFAULT_AREA_ID = 'self';
+/** Wake and bed times earn XP for this area. */
+export const SLEEP_AREA_ID = 'health';
+/** New work streams start in this area. */
+export const WORK_AREA_ID = 'career';
+
+/** Neutral starting point values; the user tunes them in Settings. */
+export const DEFAULT_FULL_POINTS = 10;
+export const DEFAULT_MIN_POINTS = 5;
+
+export function defaultGameSettings(): GameSettings {
+  return { sleepFull: 10, sleepMin: 5, priorityPoints: 10, weeklyBonus: 25, bonusChance: 0.1 };
+}
 
 export const TIMES_OF_DAY: { id: TimeOfDay; label: string }[] = [
   { id: 'morning', label: 'Morning' },
@@ -38,6 +51,7 @@ export function blankSettings(): Settings {
     workStreams: [],
     wakeBy: '07:00',
     bedBy: '23:00',
+    game: defaultGameSettings(),
   };
 }
 
@@ -51,9 +65,13 @@ export function blankHabit(kind: Habit['kind'] = 'fullmin'): Habit {
     areaId: DEFAULT_AREA_ID,
     time: 'anytime',
     frequency: { type: 'daily' },
+    fullPoints: DEFAULT_FULL_POINTS,
+    minPoints: DEFAULT_MIN_POINTS,
+    // A new habit only counts towards the streak from the day it was added.
+    since: dateKey(new Date()),
   };
 }
 
 export function createDefaultData(): AppData {
-  return { version: 3, setupDone: false, settings: blankSettings(), days: {}, inbox: [] };
+  return { version: 4, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {} };
 }

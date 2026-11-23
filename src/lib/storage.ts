@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AppData } from './types';
-import { createDefaultData, defaultAreas, DEFAULT_AREA_ID } from './defaults';
+import {
+  createDefaultData,
+  defaultAreas,
+  defaultGameSettings,
+  DEFAULT_AREA_ID,
+  DEFAULT_FULL_POINTS,
+  DEFAULT_MIN_POINTS,
+  WORK_AREA_ID,
+} from './defaults';
+import { syncDay } from './game';
+import { parseKey } from './day';
 
 /** Everything is saved under this one localStorage key. */
 const STORAGE_KEY = 'life-tracker';
@@ -24,7 +34,24 @@ function migrate(raw: any): AppData | null {
     }));
     d = { ...d, version: 3, settings: { ...d.settings, areas: defaultAreas(), habits }, inbox: [] };
   }
-  return d.version === 3 ? (d as AppData) : null;
+  if (d.version === 3) {
+    // Version 4 adds the game layer: point values, the ledger and badges.
+    // Every tick already saved earns its points now, so nothing is lost.
+    const settings = {
+      ...d.settings,
+      game: defaultGameSettings(),
+      habits: d.settings.habits.map((h: any) => ({ ...h, fullPoints: DEFAULT_FULL_POINTS, minPoints: DEFAULT_MIN_POINTS })),
+      workStreams: d.settings.workStreams.map((w: any) => ({ ...w, areaId: WORK_AREA_ID })),
+    };
+    let next: AppData = { ...d, version: 4, settings, ledger: [], achievements: {} };
+    for (const key of Object.keys(next.days).sort()) {
+      const noon = parseKey(key);
+      noon.setHours(12);
+      next = syncDay(next, key, noon);
+    }
+    d = next;
+  }
+  return d.version === 4 ? (d as AppData) : null;
 }
 
 function load(): AppData {

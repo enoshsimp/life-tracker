@@ -32,6 +32,12 @@ export interface Habit {
   areaId: string;
   time: TimeOfDay;
   frequency: Frequency;
+  /** Points for the full version (or for a yes/no tick). */
+  fullPoints: number;
+  /** Points for the minimum version. */
+  minPoints: number;
+  /** First app-day ("YYYY-MM-DD") the habit counts towards the streak. Missing = always. */
+  since?: string;
   /** Marks the gym habit, which is set up on its own and counted on the Health tab. */
   gym?: boolean;
 }
@@ -39,6 +45,21 @@ export interface Habit {
 export interface WorkStream {
   id: string;
   name: string;
+  /** Life area that earns XP when this stream's priority is done. */
+  areaId: string;
+}
+
+/** Point values and chances for the game layer. All editable in Settings. */
+export interface GameSettings {
+  /** Points for logging wake or bed time on time / late. */
+  sleepFull: number;
+  sleepMin: number;
+  /** Points for finishing a work stream's top priority. */
+  priorityPoints: number;
+  /** Extra points for hitting a times-a-week target. */
+  weeklyBonus: number;
+  /** Chance (0–1) that a tick earns double points. */
+  bonusChance: number;
 }
 
 export interface Settings {
@@ -53,6 +74,7 @@ export interface Settings {
   wakeBy: string;
   /** Latest bedtime ("HH:MM") that still earns the full version. */
   bedBy: string;
+  game: GameSettings;
 }
 
 export interface TimeLog {
@@ -84,8 +106,28 @@ export interface InboxItem {
   done: boolean;
 }
 
+/** What a ledger entry was for. Later stages add more (personal bests, purchases…). */
+export type LedgerKind = 'habit' | 'wake' | 'bed' | 'priority' | 'weekly';
+
+/** One line in the points ledger. Spending (later) is a negative amount. */
+export interface LedgerEntry {
+  id: string;
+  /** ISO timestamp it was recorded. */
+  at: string;
+  /** App-day it belongs to ("YYYY-MM-DD"). For weekly bonuses, the first day of that week. */
+  day: string;
+  kind: LedgerKind;
+  /** The habit, work stream or "wake"/"bed" it came from. */
+  ref: string;
+  amount: number;
+  /** Life area that earns the XP. */
+  areaId?: string;
+  /** True when the random bonus doubled it. */
+  bonus?: boolean;
+}
+
 export interface AppData {
-  version: 3;
+  version: 4;
   /** False until the first-run setup wizard has been completed. */
   setupDone: boolean;
   settings: Settings;
@@ -93,4 +135,8 @@ export interface AppData {
   days: Record<string, DayRecord>;
   /** Quick captures, newest first. */
   inbox: InboxItem[];
+  /** Every point earned (and later, spent). */
+  ledger: LedgerEntry[];
+  /** Badges unlocked: badge id → ISO timestamp. */
+  achievements: Record<string, string>;
 }

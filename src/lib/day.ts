@@ -27,6 +27,12 @@ export function appDayKey(now: Date, dayStartHour: number): string {
   return dateKey(appDayDate(now, dayStartHour));
 }
 
+/** The local date (at midnight) for a "YYYY-MM-DD" key. */
+export function parseKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 /** "YYYY-MM-DD" for a calendar date (local time). */
 export function dateKey(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');

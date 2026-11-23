@@ -1,11 +1,12 @@
 import type { AppData } from '../lib/types';
 
-export type MorePage = 'inbox' | 'settings';
+export type MorePage = 'progress' | 'inbox' | 'settings';
 
 /** The More tab's menu. Later stages add Reviews, Shop, Reading and Stats here. */
 export function MoreMenu({ data, onOpen }: { data: AppData; onOpen: (page: MorePage) => void }) {
   const openCount = data.inbox.filter((i) => !i.done).length;
   const items: { id: MorePage; label: string; hint: string; badge?: number; icon: string }[] = [
+    { id: 'progress', label: 'Progress', hint: 'Level, life areas, badges, points ledger', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
     { id: 'inbox', label: 'Inbox', hint: 'Your quick captures', badge: openCount, icon: 'M4 13l2-8h12l2 8M4 13v6h16v-6M4 13h5l1 2h4l1-2h5' },
     { id: 'settings', label: 'Settings', hint: 'Habits, life areas, targets', icon: 'M12 9a3 3 0 100 6 3 3 0 000-6zM12 3v3M12 18v3M3 12h3M18 12h3' },
   ];

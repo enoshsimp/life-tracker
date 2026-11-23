@@ -7,6 +7,9 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { Inbox } from './screens/Inbox';
 import { MoreMenu, SubPageHeader, type MorePage } from './screens/More';
 import { CaptureButton, CaptureSheet } from './components/QuickCapture';
+import { Progress } from './screens/Progress';
+import { Celebrations } from './components/Celebrations';
+import { useGameEvents } from './lib/useGameEvents';
 
 /** Bottom tabs. Health, Goals and Money join in later stages (never more than 5). */
 type Tab = 'today' | 'more';
@@ -16,7 +19,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'more', label: 'More', icon: 'M5 12h.01M12 12h.01M19 12h.01' },
 ];
 
-const pageTitles: Record<MorePage, string> = { inbox: 'Inbox', settings: 'Settings' };
+const pageTitles: Record<MorePage, string> = { progress: 'Progress', inbox: 'Inbox', settings: 'Settings' };
 
 export default function App() {
   const [data, update] = useAppData();
@@ -24,6 +27,7 @@ export default function App() {
   const [morePage, setMorePage] = useState<MorePage | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const closeCapture = useCallback(() => setCaptureOpen(false), []);
+  const [celebrations, celebrationDone] = useGameEvents(data, update);
 
   if (!data.setupDone) {
     return (
@@ -47,16 +51,21 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
       <main className="flex-1 px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
-        {tab === 'today' && <Today data={data} update={update} onOpenSettings={() => go('more', 'settings')} />}
+        {tab === 'today' && (
+          <Today data={data} update={update} onOpenSettings={() => go('more', 'settings')} onOpenProgress={() => go('more', 'progress')} />
+        )}
         {tab === 'more' && !morePage && <MoreMenu data={data} onOpen={(p) => go('more', p)} />}
         {tab === 'more' && morePage && (
           <div className="space-y-6">
             <SubPageHeader title={pageTitles[morePage]} onBack={() => go('more')} />
+            {morePage === 'progress' && <Progress data={data} />}
             {morePage === 'inbox' && <Inbox data={data} update={update} />}
             {morePage === 'settings' && <SettingsScreen data={data} update={update} />}
           </div>
         )}
       </main>
+
+      <Celebrations queue={celebrations} onDone={celebrationDone} />
 
       <CaptureSheet
         open={captureOpen}

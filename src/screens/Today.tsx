@@ -3,6 +3,7 @@ import type { AppData, DayRecord, Habit, TickLevel, TimeOfDay } from '../lib/typ
 import { appDayDate, appDayKey, getNow, isOnTime } from '../lib/day';
 import { TIMES_OF_DAY } from '../lib/defaults';
 import { isShownOn, weeklyCount } from '../lib/schedule';
+import { computeStreak, overallLevel, syncDay, totalXp, type LevelInfo } from '../lib/game';
 import { HabitRow, PriorityRow, TimeRow } from '../components/TodayRows';
 
 const emptyDay = (): DayRecord => ({ ticks: {}, priorities: {} });
@@ -26,10 +27,12 @@ export function Today({
   data,
   update,
   onOpenSettings,
+  onOpenProgress,
 }: {
   data: AppData;
   update: (fn: (d: AppData) => AppData) => void;
   onOpenSettings: () => void;
+  onOpenProgress: () => void;
 }) {
   const now = useNow();
   const { settings } = data;
@@ -50,8 +53,13 @@ export function Today({
   const weekly = (h: Habit) =>
     h.frequency.type === 'weekly' ? { count: weeklyCount(data, h.id, date), target: h.frequency.times } : undefined;
 
+  // Every change to the day also updates its points in the ledger.
   const editDay = (fn: (d: DayRecord) => DayRecord) =>
-    update((d) => ({ ...d, days: { ...d.days, [key]: fn(d.days[key] ?? emptyDay()) } }));
+    update((d) => syncDay({ ...d, days: { ...d.days, [key]: fn(d.days[key] ?? emptyDay()) } }, key));
+
+  const streak = computeStreak(data, date);
+  const level = overallLevel(totalXp(data));
+  const pointsToday = data.ledger.filter((e) => e.day === key && e.kind !== 'weekly').reduce((s, e) => s + e.amount, 0);
 
   const setTick = (habitId: string, level: TickLevel | undefined) =>
     editDay((d) => {
@@ -147,7 +155,15 @@ export function Today({
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <div className="flex items-end justify-between gap-4">
+        <GameBar
+          level={level}
+          streak={streak.current}
+          streakAlive={streak.todayDone}
+          shieldUsed={streak.shieldUsed}
+          pointsToday={pointsToday}
+          onClick={onOpenProgress}
+        />
+        <div className="mt-5 flex items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-accent">
               {date.toLocaleDateString(undefined, { weekday: 'long' })}
@@ -192,6 +208,67 @@ export function Today({
           ),
       )}
     </div>
+  );
+}
+
+/** Level, XP bar, streak, shield and today's points. Tapping it opens Progress. */
+function GameBar({
+  level,
+  streak,
+  streakAlive,
+  shieldUsed,
+  pointsToday,
+  onClick,
+}: {
+  level: LevelInfo;
+  streak: number;
+  streakAlive: boolean;
+  shieldUsed: boolean;
+  pointsToday: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open Progress"
+      className="w-full rounded-2xl border border-line bg-surface p-3 text-left hover:border-accent"
+    >
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent text-bg">
+          <span className="text-center leading-none">
+            <span className="block text-[9px] font-bold uppercase">Lv</span>
+            <span className="block text-lg font-black tabular-nums">{level.level}</span>
+          </span>
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-semibold text-muted">
+              <span className="tabular-nums text-text">{level.into}</span>/{level.need} XP
+            </span>
+            <span className="font-bold tabular-nums text-full">+{pointsToday} today</span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2">
+            <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${(level.into / level.need) * 100}%` }} />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-4 text-sm">
+        <span className={`flex items-center gap-1.5 font-bold ${streakAlive ? 'text-min' : 'text-text'}`}>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+            <path d="M12 2c1 4 5 6 5 11a5 5 0 01-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-4-1-6 1-9.5z" />
+          </svg>
+          <span className="tabular-nums">{streak}</span>
+          <span className="font-semibold text-muted">day streak</span>
+        </span>
+        <span className={`flex items-center gap-1.5 text-xs font-semibold ${shieldUsed ? 'text-muted' : 'text-sky-400'}`}>
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
+            <path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z" />
+          </svg>
+          {shieldUsed ? 'Shield used' : 'Shield ready'}
+        </span>
+      </div>
+    </button>
   );
 }
 
