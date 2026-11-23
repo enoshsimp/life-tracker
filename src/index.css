@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0d12;
+  --color-surface: #151922;
+  --color-surface-2: #1e2430;
+  --color-line: #2a3140;
+  --color-muted: #8a93a6;
+  --color-text: #eef1f6;
+  --color-full: #34d399;
+  --color-min: #fbbf24;
+  --color-accent: #818cf8;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Tick feedback: the button pops, and a ring bursts outwards behind it. */
+@keyframes pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.14); }
+  65% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+@keyframes burst {
+  0% { transform: scale(0.4); opacity: 0.85; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes check-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-pop {
+  animation: pop 360ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.burst-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 2px solid currentColor;
+  animation: burst 520ms ease-out forwards;
+}
+
+.check-draw {
+  stroke-dasharray: 24;
+  animation: check-draw 280ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop,
+  .burst-ring,
+  .check-draw {
+    animation: none;
+  }
+  .burst-ring {
+    display: none;
+  }
+}
