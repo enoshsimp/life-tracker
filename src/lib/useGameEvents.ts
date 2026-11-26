@@ -27,13 +27,19 @@ function snapshot(data: AppData): Snapshot {
  * newly earned badges. Whatever is already true when the app opens is
  * recorded quietly, without animations.
  */
-export function useGameEvents(data: AppData, update: (fn: (d: AppData) => AppData) => void) {
+export function useGameEvents(data: AppData, update: (fn: (d: AppData) => AppData) => void, epoch = 0) {
   const [queue, setQueue] = useState<Fx[]>([]);
   const prev = useRef<Snapshot | null>(null);
+  const prevEpoch = useRef(epoch);
 
   useEffect(() => {
     if (!data.setupDone) return;
     const fx: Fx[] = [];
+    // When the whole data set is swapped (a restored backup), start over quietly.
+    if (epoch !== prevEpoch.current) {
+      prevEpoch.current = epoch;
+      prev.current = null;
+    }
     const before = prev.current;
     const now = snapshot(data);
 
@@ -60,7 +66,7 @@ export function useGameEvents(data: AppData, update: (fn: (d: AppData) => AppDat
 
     prev.current = now;
     if (fx.length) setQueue((q) => [...q, ...fx]);
-  }, [data, update]);
+  }, [data, update, epoch]);
 
   const done = useCallback((id: string) => setQueue((q) => q.filter((f) => f.id !== id)), []);
   return [queue, done] as const;

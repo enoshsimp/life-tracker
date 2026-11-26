@@ -126,8 +126,14 @@ export interface LedgerEntry {
   bonus?: boolean;
 }
 
+/** Housekeeping about the data itself. */
+export interface Meta {
+  /** When a backup file was last saved (ISO timestamp). */
+  lastBackup?: string;
+}
+
 export interface AppData {
-  version: 4;
+  version: 5;
   /** False until the first-run setup wizard has been completed. */
   setupDone: boolean;
   settings: Settings;
@@ -139,4 +145,5 @@ export interface AppData {
   ledger: LedgerEntry[];
   /** Badges unlocked: badge id → ISO timestamp. */
   achievements: Record<string, string>;
+  meta: Meta;
 }

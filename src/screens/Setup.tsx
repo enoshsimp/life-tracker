@@ -1,5 +1,6 @@
 import { useState, type ComponentType } from 'react';
-import type { Settings } from '../lib/types';
+import type { AppData, Settings } from '../lib/types';
+import { RestoreButton } from '../components/Backup';
 import { blankHabit } from '../lib/defaults';
 import { DayWeekEditor, GymEditor, HabitsEditor, SleepEditor, WorkStreamsEditor, type EditorProps } from '../components/editors';
 
@@ -50,8 +51,18 @@ const steps: { title: string; intro: string; Editor?: ComponentType<EditorProps>
   },
 ];
 
-export function Setup({ initial, onFinish }: { initial: Settings; onFinish: (s: Settings) => void }) {
+export function Setup({
+  initial,
+  onFinish,
+  onRestore,
+}: {
+  initial: Settings;
+  onFinish: (s: Settings) => void;
+  /** Skips setup by restoring a backup file instead (e.g. on a new phone). */
+  onRestore: (d: AppData) => void;
+}) {
   const [step, setStep] = useState(0);
+  const [restoreMessage, setRestoreMessage] = useState<{ ok: boolean; text: string } | null>(null);
   // Start with one empty habit row so the first habit is ready to type.
   const [draft, setDraft] = useState<Settings>(() =>
     initial.habits.some((h) => !h.gym) ? initial : { ...initial, habits: [blankHabit(), ...initial.habits] },
@@ -74,7 +85,22 @@ export function Setup({ initial, onFinish }: { initial: Settings; onFinish: (s: 
       <h1 className="mt-1 text-3xl font-black tracking-tight">{title}</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">{intro}</p>
 
-      <div className="mt-6 flex-1">{Editor && <Editor settings={draft} onChange={(fn) => setDraft(fn)} />}</div>
+      <div className="mt-6 flex-1">
+        {Editor && <Editor settings={draft} onChange={(fn) => setDraft(fn)} />}
+        {step === 0 && (
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <p className="font-semibold">Already have a backup?</p>
+            <p className="mt-1 text-xs text-muted">Restore it to pick up where you left off, and skip setup.</p>
+            <RestoreButton
+              onRestore={onRestore}
+              askFirst={false}
+              onMessage={setRestoreMessage}
+              className="mt-3 rounded-full border border-line px-4 py-2 text-sm font-semibold hover:border-accent"
+            />
+            {restoreMessage && !restoreMessage.ok && <p className="mt-2 text-xs font-semibold text-red-400">{restoreMessage.text}</p>}
+          </div>
+        )}
+      </div>
 
       <div className="sticky bottom-0 -mx-4 mt-6 flex gap-3 bg-bg/90 px-4 py-3 backdrop-blur">
         {step > 0 && (

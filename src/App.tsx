@@ -10,6 +10,8 @@ import { CaptureButton, CaptureSheet } from './components/QuickCapture';
 import { Progress } from './screens/Progress';
 import { Celebrations } from './components/Celebrations';
 import { useGameEvents } from './lib/useGameEvents';
+import { UpdatePrompt } from './components/UpdatePrompt';
+import type { AppData } from './lib/types';
 
 /** Bottom tabs. Health, Goals and Money join in later stages (never more than 5). */
 type Tab = 'today' | 'more';
@@ -27,18 +29,32 @@ export default function App() {
   const [morePage, setMorePage] = useState<MorePage | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const closeCapture = useCallback(() => setCaptureOpen(false), []);
-  const [celebrations, celebrationDone] = useGameEvents(data, update);
+  // Goes up when the whole data set is replaced (restore or erase), so it isn't celebrated as new progress.
+  const [dataEpoch, setDataEpoch] = useState(0);
+  const replaceData = (next: AppData) => {
+    update(() => next);
+    setDataEpoch((e) => e + 1);
+  };
+  const [celebrations, celebrationDone] = useGameEvents(data, update, dataEpoch);
 
   if (!data.setupDone) {
     return (
-      <Setup
-        initial={data.settings}
-        onFinish={(settings) => {
-          update((d) => ({ ...d, settings, setupDone: true }));
-          setTab('today');
-          setMorePage(null);
-        }}
-      />
+      <>
+        <Setup
+          initial={data.settings}
+          onFinish={(settings) => {
+            update((d) => ({ ...d, settings, setupDone: true }));
+            setTab('today');
+            setMorePage(null);
+          }}
+          onRestore={(d) => {
+            replaceData(d);
+            setTab('today');
+            setMorePage(null);
+          }}
+        />
+        <UpdatePrompt />
+      </>
     );
   }
 
@@ -60,12 +76,13 @@ export default function App() {
             <SubPageHeader title={pageTitles[morePage]} onBack={() => go('more')} />
             {morePage === 'progress' && <Progress data={data} />}
             {morePage === 'inbox' && <Inbox data={data} update={update} />}
-            {morePage === 'settings' && <SettingsScreen data={data} update={update} />}
+            {morePage === 'settings' && <SettingsScreen data={data} update={update} replaceData={replaceData} />}
           </div>
         )}
       </main>
 
       <Celebrations queue={celebrations} onDone={celebrationDone} />
+      <UpdatePrompt />
 
       <CaptureSheet
         open={captureOpen}

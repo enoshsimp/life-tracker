@@ -5,6 +5,8 @@ import { TIMES_OF_DAY } from '../lib/defaults';
 import { isShownOn, weeklyCount } from '../lib/schedule';
 import { computeStreak, overallLevel, syncDay, totalXp, type LevelInfo } from '../lib/game';
 import { HabitRow, PriorityRow, TimeRow } from '../components/TodayRows';
+import { BackupReminder } from '../components/Backup';
+import { backupDue } from '../lib/backup';
 
 const emptyDay = (): DayRecord => ({ ticks: {}, priorities: {} });
 
@@ -188,6 +190,8 @@ export function Today({
           </p>
         )}
       </header>
+
+      {backupDue(data, now) && <BackupReminder data={data} update={update} />}
 
       {!hasAnyHabits && (
         <button

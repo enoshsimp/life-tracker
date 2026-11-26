@@ -51,7 +51,42 @@ function migrate(raw: any): AppData | null {
     }
     d = next;
   }
-  return d.version === 4 ? (d as AppData) : null;
+  if (d.version === 4) {
+    // Version 5 adds meta, which remembers when you last saved a backup.
+    d = { ...d, version: 5, meta: {} };
+  }
+  return d.version === 5 ? (d as AppData) : null;
+}
+
+/* ---------- Backups ---------- */
+
+/** Marks a file as one of this app's backups, so a random JSON file isn't mistaken for one. */
+const BACKUP_APP = 'life-tracker';
+
+/** Turns the data into the text of a backup file. */
+export function backupText(data: AppData): string {
+  return JSON.stringify({ app: BACKUP_APP, exportedAt: new Date().toISOString(), data }, null, 2);
+}
+
+/** File name for a backup saved today, e.g. life-tracker-backup-2026-11-26.json. */
+export function backupFileName(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `life-tracker-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`;
+}
+
+/**
+ * Reads a backup file's text. Older backups are upgraded to the current version.
+ * Returns null if the text isn't a backup this app can read.
+ */
+export function readBackup(text: string): { data: AppData; exportedAt?: string } | null {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed?.app !== BACKUP_APP) return null;
+    const data = migrate(parsed.data);
+    return data ? { data, exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : undefined } : null;
+  } catch {
+    return null;
+  }
 }
 
 function load(): AppData {

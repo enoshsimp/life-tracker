@@ -1,18 +1,28 @@
 import type { ReactNode } from 'react';
 import type { AppData, Settings } from '../lib/types';
 import { createDefaultData } from '../lib/defaults';
+import { BackupSection } from '../components/Backup';
 import { AreasEditor, DayWeekEditor, GymEditor, HabitsEditor, PointsEditor, SleepEditor, WorkStreamsEditor } from '../components/editors';
 
 /** Every personal value, editable. Changes save and apply to Today straight away. */
-export function SettingsScreen({ data, update }: { data: AppData; update: (fn: (d: AppData) => AppData) => void }) {
+export function SettingsScreen({
+  data,
+  update,
+  replaceData,
+}: {
+  data: AppData;
+  update: (fn: (d: AppData) => AppData) => void;
+  /** Swaps in a whole new set of data (restore or erase), without celebrating it as new progress. */
+  replaceData: (d: AppData) => void;
+}) {
   const onChange = (fn: (s: Settings) => Settings) => update((d) => ({ ...d, settings: fn(d.settings) }));
   const props = { settings: data.settings, onChange };
 
   function eraseAll() {
     const ok = window.confirm(
-      'Erase everything on this device (settings, ticks and history) and run setup again?\n\nThis cannot be undone.',
+      'Erase everything on this device (settings, ticks and history) and run setup again?\n\nThis cannot be undone. Save a backup first if you might want it back.',
     );
-    if (ok) update(() => createDefaultData());
+    if (ok) replaceData(createDefaultData());
   }
 
   return (
@@ -39,6 +49,10 @@ export function SettingsScreen({ data, update }: { data: AppData; update: (fn: (
       </Section>
       <Section title="Day and week">
         <DayWeekEditor {...props} />
+      </Section>
+
+      <Section title="Backup">
+        <BackupSection data={data} update={update} replaceData={replaceData} />
       </Section>
 
       <Section title="Data">

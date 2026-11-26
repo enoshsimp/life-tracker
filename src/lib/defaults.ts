@@ -73,5 +73,5 @@ export function blankHabit(kind: Habit['kind'] = 'fullmin'): Habit {
 }
 
 export function createDefaultData(): AppData {
-  return { version: 4, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {} };
+  return { version: 5, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {}, meta: {} };
 }
