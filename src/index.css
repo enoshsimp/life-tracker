@@ -146,7 +146,18 @@ button {
   animation: shimmer 500ms ease-in-out 3;
 }
 
+/* Bosses bob gently while they wait for your next clean day. */
+@keyframes boss-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
+}
+
+.animate-boss-bob {
+  animation: boss-bob 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-boss-bob,
   .animate-pop,
   .burst-ring,
   .check-draw,

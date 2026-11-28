@@ -30,7 +30,8 @@ export function isBonus(day: string, kind: LedgerKind, ref: string, chance: numb
 
 /* ---------- Keeping the ledger in step with a day's ticks ---------- */
 
-const DAY_KINDS = new Set<LedgerKind>(['habit', 'wake', 'bed', 'priority']);
+/** Ledger lines that follow what's logged on a day, so undoing removes them. Clean days and bosses are added by settleDays instead. */
+const DAY_KINDS = new Set<LedgerKind>(['habit', 'wake', 'bed', 'priority', 'resisted']);
 const entryKey = (e: Pick<LedgerEntry, 'kind' | 'day' | 'ref'>) => `${e.kind}|${e.day}|${e.ref}`;
 
 /**
@@ -70,6 +71,12 @@ export function syncDay(data: AppData, dayKey: string, at: Date = new Date()): A
     for (const [streamId, p] of Object.entries(rec.priorities)) {
       const w = s.workStreams.find((x) => x.id === streamId);
       if (w && p.done) earn('priority', streamId, g.priorityPoints, w.areaId);
+    }
+    // Resisted urges: one line per bad habit, up to the daily cap. No double-points dice here.
+    for (const [habitId, n] of Object.entries(rec.resisted ?? {})) {
+      const h = s.badHabits.find((x) => x.id === habitId);
+      const amount = Math.min(n, Math.max(0, g.resistedCap)) * g.resisted;
+      if (h && amount > 0) wanted.push({ day: dayKey, kind: 'resisted', ref: habitId, amount, areaId: h.areaId });
     }
   }
 

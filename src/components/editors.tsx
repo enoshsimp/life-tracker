@@ -1,5 +1,5 @@
-import type { Frequency, Habit, Settings, TimeOfDay, WorkStream } from '../lib/types';
-import { blankHabit, TIMES_OF_DAY, WORK_AREA_ID } from '../lib/defaults';
+import type { BadHabit, Frequency, Habit, ReduceType, Settings, TimeOfDay, WorkStream } from '../lib/types';
+import { blankBadHabit, blankHabit, TIMES_OF_DAY, WORK_AREA_ID } from '../lib/defaults';
 import { newId } from '../lib/id';
 import { AddButton, DayPicker, Field, IconButton, NumberInput, Segmented, TextInput, Toggle, inputClass } from './ui';
 
@@ -192,6 +192,93 @@ export function HabitsEditor({ settings, onChange }: EditorProps) {
   );
 }
 
+/* ---------- Bad habits (bosses) ---------- */
+
+/** A − number + stepper. */
+function Stepper({ value, onChange, min, max, unit, label }: { value: number; onChange: (n: number) => void; min: number; max: number; unit: string; label: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 px-2 py-1.5">
+      <IconButton label={`Less: ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)}>
+        <path d="M5 12h14" />
+      </IconButton>
+      <p className="text-sm">
+        <span className="text-lg font-black tabular-nums">{value}</span>
+        <span className="text-muted"> {unit}</span>
+      </p>
+      <IconButton label={`More: ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)}>
+        <path d="M12 5v14M5 12h14" />
+      </IconButton>
+    </div>
+  );
+}
+
+export function BadHabitsEditor({ settings, onChange }: EditorProps) {
+  const list = settings.badHabits;
+  const setList = (fn: (l: BadHabit[]) => BadHabit[]) => onChange((s) => ({ ...s, badHabits: fn(s.badHabits) }));
+  const patch = (id: string, p: Partial<BadHabit>) => setList((l) => l.map((h) => (h.id === id ? { ...h, ...p } : h)));
+
+  const setType = (h: BadHabit, type: ReduceType) => {
+    if (type === h.type) return;
+    // A limit needs at least 1; quit is always 0.
+    patch(h.id, { type, limit: type === 'quit' ? 0 : Math.max(1, h.limit || (type === 'daily' ? 1 : 2)) });
+  };
+
+  return (
+    <div className="space-y-3">
+      {list.map((h, i) => (
+        <div key={h.id} className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+          <div className="flex items-center gap-1">
+            <div className="flex-1">
+              <TextInput value={h.name} onChange={(name) => patch(h.id, { name })} placeholder={`Bad habit ${i + 1}`} ariaLabel="Bad habit name" />
+            </div>
+            <IconButton label="Move up" disabled={i === 0} onClick={() => setList((l) => move(l, i, i - 1))}>
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </IconButton>
+            <IconButton label="Move down" disabled={i === list.length - 1} onClick={() => setList((l) => move(l, i, i + 1))}>
+              <path d="M12 5v14M5 12l7 7 7-7" />
+            </IconButton>
+            <IconButton label="Delete bad habit" danger onClick={() => setList((l) => l.filter((x) => x.id !== h.id))}>
+              <path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" />
+            </IconButton>
+          </div>
+
+          <Segmented
+            compact
+            ariaLabel="Goal"
+            value={h.type}
+            onChange={(type) => setType(h, type)}
+            options={[
+              { value: 'quit', label: 'Quit' },
+              { value: 'daily', label: 'Daily limit' },
+              { value: 'weekly', label: 'Weekly limit' },
+            ]}
+          />
+
+          {h.type !== 'quit' && (
+            <Stepper
+              label="allowed"
+              value={h.limit}
+              min={1}
+              max={h.type === 'daily' ? 20 : 50}
+              unit={`allowed a ${h.type === 'daily' ? 'day' : 'week'}`}
+              onChange={(limit) => patch(h.id, { limit })}
+            />
+          )}
+
+          <Field label="Boss HP" hint="Clean days needed to defeat it. They don't have to be in a row, but each slip heals it a little.">
+            <NumberInput value={h.bossTarget} min={1} max={365} onChange={(bossTarget) => patch(h.id, { bossTarget })} ariaLabel="Boss HP" suffix="days" />
+          </Field>
+
+          <Field label="Life area">
+            <AreaSelect settings={settings} value={h.areaId} onChange={(areaId) => patch(h.id, { areaId })} />
+          </Field>
+        </div>
+      ))}
+      <AddButton onClick={() => setList((l) => [...l, blankBadHabit(settings.dayStartHour)])}>Add a bad habit</AddButton>
+    </div>
+  );
+}
+
 /* ---------- Gym ---------- */
 
 /** The setup wizard hides the life area (gym is always Health there); Settings shows it. */
@@ -369,6 +456,29 @@ export function PointsEditor({ settings, onChange }: EditorProps) {
           suffix="%"
         />
       </Field>
+
+      <p className="pt-2 text-xs font-bold uppercase tracking-widest text-muted">Bad habits and bosses</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Clean day">
+          <NumberInput value={g.cleanDay} onChange={(cleanDay) => set({ cleanDay })} ariaLabel="Clean day points" suffix="pts" />
+        </Field>
+        <Field label="Comeback bonus">
+          <NumberInput value={g.comeback} onChange={(comeback) => set({ comeback })} ariaLabel="Comeback bonus points" suffix="pts" />
+        </Field>
+        <Field label="Urge resisted">
+          <NumberInput value={g.resisted} onChange={(resisted) => set({ resisted })} ariaLabel="Resisted points" suffix="pts" />
+        </Field>
+        <Field label="Resisted max">
+          <NumberInput value={g.resistedCap} onChange={(resistedCap) => set({ resistedCap })} max={50} ariaLabel="Resisted urges that earn points per day" suffix="a day" />
+        </Field>
+        <Field label="Slip heals boss">
+          <NumberInput value={g.slipHeal} onChange={(slipHeal) => set({ slipHeal })} max={365} ariaLabel="HP a slip heals" suffix="HP" />
+        </Field>
+        <Field label="Boss defeated">
+          <NumberInput value={g.bossDefeat} onChange={(bossDefeat) => set({ bossDefeat })} ariaLabel="Boss defeated points" suffix="pts" />
+        </Field>
+      </div>
+      <p className="text-xs text-muted">A comeback is a clean day straight after a slip. Clean-day points arrive once the day is over.</p>
     </div>
   );
 }

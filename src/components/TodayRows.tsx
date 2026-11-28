@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import type { Habit, Priority, TickLevel, TimeLog } from '../lib/types';
+import type { BadHabit, Habit, Priority, TickLevel, TimeLog } from '../lib/types';
 import { formatTime } from '../lib/day';
 import { buzz } from '../lib/feedback';
 import { usePressHold } from '../lib/usePressHold';
@@ -108,6 +108,153 @@ export function HabitRow({
         </div>
       </button>
     </li>
+  );
+}
+
+/* ---------- Bad habit: clean by default, log slips and resisted urges ---------- */
+
+/**
+ * A bad habit counts as clean unless you log a slip. Each button adds one;
+ * the count next to it removes the last one (today only).
+ */
+export function BadHabitRow({
+  habit,
+  areaName,
+  slips,
+  resisted,
+  weekCount,
+  cleanStreak,
+  resistedCap,
+  resistedPoints,
+  onSlip,
+  onResist,
+}: {
+  habit: BadHabit;
+  areaName: string;
+  /** Slips (quit) or uses (limits) today. */
+  slips: number;
+  resisted: number;
+  /** Uses so far this week, for a weekly limit. */
+  weekCount: number;
+  cleanStreak: number;
+  resistedCap: number;
+  resistedPoints: number;
+  onSlip: (change: 1 | -1) => void;
+  onResist: (change: 1 | -1) => void;
+}) {
+  const [burst, setBurst] = useState(0);
+  const slipWord = habit.type === 'quit' ? 'Slipped' : 'Used one';
+
+  let status: { text: string; bad: boolean };
+  if (habit.type === 'quit') status = slips ? { text: `Slipped ×${slips} today`, bad: true } : { text: 'Clean today', bad: false };
+  else if (habit.type === 'daily')
+    status = slips > habit.limit ? { text: `Over by ${slips - habit.limit} today`, bad: true } : { text: `${slips} of ${habit.limit} used today`, bad: false };
+  else {
+    const left = habit.limit - weekCount;
+    status = left < 0 ? { text: `Over by ${-left} this week`, bad: true } : { text: `${left} of ${habit.limit} left this week`, bad: false };
+  }
+  const xpLeft = resisted < resistedCap && resistedPoints > 0;
+
+  return (
+    <li className={`rounded-2xl border bg-surface p-4 transition-colors duration-300 ${status.bad ? 'border-red-500/40' : 'border-line'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="font-semibold">{habit.name}</p>
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <span className="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 font-semibold">{areaName}</span>
+            <span className={`truncate font-bold ${status.bad ? 'text-red-400' : 'text-full'}`}>{status.text}</span>
+          </p>
+        </div>
+        {cleanStreak > 0 && (
+          <span className="shrink-0 text-right text-xs font-semibold text-muted">
+            <span className="block text-lg font-black tabular-nums leading-none text-full">{cleanStreak}</span>
+            clean {cleanStreak === 1 ? 'day' : 'days'}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <CountButton
+          label="Resisted"
+          sub={xpLeft ? `+${resistedPoints} XP` : 'Logged'}
+          count={resisted}
+          tone="good"
+          burst={burst}
+          onAdd={() => {
+            buzz('full');
+            setBurst((n) => n + 1);
+            onResist(1);
+          }}
+          onRemove={() => {
+            buzz('undo');
+            onResist(-1);
+          }}
+          removeLabel={`Remove the last resisted urge (${resisted} today)`}
+        />
+        <CountButton
+          label={slipWord}
+          count={slips}
+          tone="bad"
+          onAdd={() => {
+            buzz('min');
+            onSlip(1);
+          }}
+          onRemove={() => {
+            buzz('undo');
+            onSlip(-1);
+          }}
+          removeLabel={`Remove the last ${habit.type === 'quit' ? 'slip' : 'use'} (${slips} today)`}
+        />
+      </div>
+    </li>
+  );
+}
+
+/** A button that adds one, with a count beside it that removes the last one. */
+function CountButton({
+  label,
+  sub,
+  count,
+  tone,
+  burst = 0,
+  onAdd,
+  onRemove,
+  removeLabel,
+}: {
+  label: string;
+  sub?: string;
+  count: number;
+  tone: 'good' | 'bad';
+  burst?: number;
+  onAdd: () => void;
+  onRemove: () => void;
+  removeLabel: string;
+}) {
+  const text = tone === 'good' ? 'text-full' : 'text-red-400';
+  const border = tone === 'good' ? 'border-full/50' : 'border-red-500/50';
+  return (
+    <div className="flex flex-1 overflow-hidden rounded-xl border border-line bg-surface-2">
+      <button type="button" onClick={onAdd} className={`relative flex-1 px-3 py-2 text-left active:scale-[0.97] ${text}`}>
+        <span key={burst} className={`block text-sm font-bold ${burst ? 'animate-pop' : ''}`}>
+          {label}
+        </span>
+        {sub && <span className="block text-[11px] font-semibold text-muted">{sub}</span>}
+      </button>
+      {count > 0 && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={removeLabel}
+          title="Tap to remove the last one"
+          className={`flex shrink-0 items-center gap-1 border-l px-3 text-sm font-black tabular-nums ${border} ${text}`}
+        >
+          ×{count}
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }
 

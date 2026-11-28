@@ -2,7 +2,7 @@ import { useState, type ComponentType } from 'react';
 import type { AppData, Settings } from '../lib/types';
 import { RestoreButton } from '../components/Backup';
 import { blankHabit } from '../lib/defaults';
-import { DayWeekEditor, GymEditor, HabitsEditor, SleepEditor, WorkStreamsEditor, type EditorProps } from '../components/editors';
+import { BadHabitsEditor, DayWeekEditor, GymEditor, HabitsEditor, SleepEditor, WorkStreamsEditor, type EditorProps } from '../components/editors';
 
 /** Drops rows left blank and trims names, so half-filled entries never reach Today. */
 export function cleanSettings(s: Settings): Settings {
@@ -13,6 +13,7 @@ export function cleanSettings(s: Settings): Settings {
       // The wizard doesn't ask for the gym's life area: it's always Health (changeable later in Settings).
       .map((h) => (h.gym ? { ...h, areaId: 'health' } : h))
       .filter((h) => h.name),
+    badHabits: s.badHabits.map((h) => ({ ...h, name: h.name.trim() })).filter((h) => h.name),
     workStreams: s.workStreams.map((w) => ({ ...w, name: w.name.trim() })).filter((w) => w.name),
   };
 }
@@ -33,6 +34,12 @@ const steps: { title: string; intro: string; Editor?: ComponentType<EditorProps>
     title: 'Gym',
     intro: 'Pick set gym days, or a number of sessions a week that you can fit in on any day.',
     Editor: (props) => <GymEditor {...props} showArea={false} />,
+  },
+  {
+    title: 'Bad habits (optional)',
+    intro:
+      "Anything you want to quit or cut down? Each one becomes a boss you beat with clean days. You only log it when you slip, so it's no extra work. Skip this with Next if you like.",
+    Editor: BadHabitsEditor,
   },
   {
     title: 'Sleep',

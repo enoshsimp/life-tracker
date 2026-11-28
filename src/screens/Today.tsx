@@ -4,28 +4,15 @@ import { appDayDate, appDayKey, getNow, isOnTime, minutesIntoAppDay } from '../l
 import { TIMES_OF_DAY } from '../lib/defaults';
 import { isShownOn, weeklyCount } from '../lib/schedule';
 import { computeStreak, overallLevel, syncDay, totalXp, type LevelInfo } from '../lib/game';
-import { HabitRow, PriorityRow, TimeRow } from '../components/TodayRows';
+import { BadHabitRow, HabitRow, PriorityRow, TimeRow } from '../components/TodayRows';
+import { allBosses } from '../lib/bosses';
+import { useNow } from '../lib/useNow';
 import { BackupReminder } from '../components/Backup';
 import { CheckIn, checkInItems } from '../components/CheckIn';
 import { CheckIcon } from '../components/TickButton';
 import { backupDue } from '../lib/backup';
 
 const emptyDay = (): DayRecord => ({ ticks: {}, priorities: {} });
-
-/** Re-reads the clock every 30 seconds and when the app comes back into view, so the day rolls over at the reset hour. */
-function useNow() {
-  const [now, setNow] = useState(getNow);
-  useEffect(() => {
-    const refresh = () => setNow(getNow());
-    const id = window.setInterval(refresh, 30_000);
-    document.addEventListener('visibilitychange', refresh);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener('visibilitychange', refresh);
-    };
-  }, []);
-  return now;
-}
 
 /** One row on Today, and whether it counts as done for progress and for folding its group. */
 interface Row {
@@ -55,7 +42,7 @@ export function Today({
   // Rows still being named in Settings are left out until they have a name.
   const habits = settings.habits.filter((h) => h.name.trim() && isShownOn(h, date));
   const workStreams = settings.workStreams.filter((w) => w.name.trim());
-  const hasAnyHabits = settings.habits.some((h) => h.name.trim());
+  const hasAnyHabits = settings.habits.some((h) => h.name.trim()) || settings.badHabits.some((h) => h.name.trim());
 
   const areaName = (id: string) => {
     const i = settings.areas.findIndex((a) => a.id === id);
@@ -181,6 +168,19 @@ export function Today({
     anytime: habitRows('anytime'),
   };
 
+  // Bad habits: clean by default, so they sit apart and don't count towards the ring.
+  const bosses = allBosses(data, key).filter((b) => b.habit.since <= key);
+  const changeCount = (field: 'slips' | 'resisted', habitId: string, change: 1 | -1) =>
+    editDay((d) => {
+      const counts = { ...d[field] };
+      const n = Math.max(0, (counts[habitId] ?? 0) + change);
+      if (n) counts[habitId] = n;
+      else delete counts[habitId];
+      // Logging a slip replaces a "stayed clean" check-in answer.
+      const checkIn = field === 'slips' && change > 0 ? withoutAnswer(d.checkIn, habitId) : d.checkIn;
+      return { ...d, [field]: Object.keys(counts).length ? counts : undefined, checkIn };
+    });
+
   const allRows = TIMES_OF_DAY.flatMap((t) => groups[t.id]);
   const total = allRows.length;
   const done = allRows.filter((r) => r.done).length;
@@ -263,6 +263,32 @@ export function Today({
             // Keyed by day, so a new day starts with every group open.
             <Section key={`${key}-${t.id}`} title={t.label} rows={groups[t.id]} />
           ),
+      )}
+
+      {bosses.length > 0 && (
+        <section>
+          <h2 className="mb-2 flex items-center justify-between px-1 text-xs font-bold uppercase tracking-widest text-muted">
+            <span>Bad habits</span>
+            <span className="normal-case tracking-normal">Clean unless you log a slip</span>
+          </h2>
+          <ul className="space-y-2">
+            {bosses.map((b) => (
+              <BadHabitRow
+                key={b.habit.id}
+                habit={b.habit}
+                areaName={areaName(b.habit.areaId)}
+                slips={b.todayCount}
+                resisted={day.resisted?.[b.habit.id] ?? 0}
+                weekCount={b.weekCount}
+                cleanStreak={b.cleanStreak}
+                resistedCap={settings.game.resistedCap}
+                resistedPoints={settings.game.resisted}
+                onSlip={(c) => changeCount('slips', b.habit.id, c)}
+                onResist={(c) => changeCount('resisted', b.habit.id, c)}
+              />
+            ))}
+          </ul>
+        </section>
       )}
 
       {checkInOpen && <CheckIn data={data} update={update} dayKey={key} date={date} onClose={() => setCheckInOpen(false)} />}

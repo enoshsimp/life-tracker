@@ -1,5 +1,8 @@
-import type { AppData } from './types';
+import type { AppData, LedgerKind } from './types';
 import { computeStreak, overallLevel, totalXp } from './game';
+
+/** Ledger lines that come from ticking something on Today. */
+const TICK_KINDS = new Set<LedgerKind>(['habit', 'wake', 'bed', 'priority']);
 
 /** The numbers badges are judged on, all worked out from saved data. */
 export interface BadgeStats {
@@ -15,7 +18,7 @@ export interface BadgeStats {
 export function badgeStats(data: AppData, today: Date): BadgeStats {
   const streak = computeStreak(data, today);
   return {
-    ticks: data.ledger.filter((e) => e.kind !== 'weekly' && e.amount > 0).length,
+    ticks: data.ledger.filter((e) => TICK_KINDS.has(e.kind) && e.amount > 0).length,
     bestStreak: streak.best,
     fullDays: streak.fullDays,
     weeklyHits: data.ledger.filter((e) => e.kind === 'weekly').length,

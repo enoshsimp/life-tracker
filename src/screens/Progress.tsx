@@ -118,6 +118,7 @@ export function Progress({ data }: { data: AppData }) {
 /** What a ledger line was for, using today's names (an item deleted since shows as "Deleted …"). */
 function ledgerLabel(data: AppData, e: LedgerEntry): string {
   const habit = () => data.settings.habits.find((h) => h.id === e.ref)?.name || 'Deleted habit';
+  const badHabit = (id: string) => data.settings.badHabits.find((h) => h.id === id)?.name || 'Deleted bad habit';
   switch (e.kind) {
     case 'habit':
       return habit();
@@ -129,6 +130,16 @@ function ledgerLabel(data: AppData, e: LedgerEntry): string {
       return 'Bedtime';
     case 'priority':
       return `Top priority: ${data.settings.workStreams.find((w) => w.id === e.ref)?.name || 'Deleted work stream'}`;
+    case 'resisted':
+      return `Resisted: ${badHabit(e.ref)}`;
+    case 'clean':
+      return `Clean day: ${badHabit(e.ref)}`;
+    case 'comeback':
+      return `Comeback: ${badHabit(e.ref)}`;
+    case 'boss': {
+      const [id, round] = e.ref.split('#');
+      return `Boss defeated: ${badHabit(id)} (round ${round})`;
+    }
   }
 }
 

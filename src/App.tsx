@@ -1,5 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppData } from './lib/storage';
+import { useNow } from './lib/useNow';
+import { appDayKey } from './lib/day';
+import { settleDays } from './lib/bosses';
 import { newId } from './lib/id';
 import { Today } from './screens/Today';
 import { Setup } from './screens/Setup';
@@ -46,6 +49,14 @@ export default function App() {
   };
   const [celebrations, celebrationDone] = useGameEvents(data, update, dataEpoch);
 
+  // When a day is over, bad habits that stayed clean earn their points (and hit their boss).
+  // Runs after the celebrations have seen the data, so hits from days you were away still animate.
+  const todayKey = appDayKey(useNow(), data.settings.dayStartHour);
+  const badHabits = data.settings.badHabits;
+  useEffect(() => {
+    if (data.setupDone && badHabits.length) update((d) => settleDays(d, todayKey));
+  }, [todayKey, badHabits, data.setupDone, dataEpoch, update]);
+
   if (!data.setupDone) {
     return (
       <>
@@ -79,7 +90,7 @@ export default function App() {
         {tab === 'today' && (
           <Today data={data} update={update} onOpenSettings={() => go('more', 'settings')} onOpenProgress={() => go('more', 'progress')} />
         )}
-        {tab === 'play' && <Play data={data} />}
+        {tab === 'play' && <Play data={data} onOpenSettings={() => go('more', 'settings')} />}
         {tab === 'more' && !morePage && <MoreMenu data={data} onOpen={(p) => go('more', p)} />}
         {tab === 'more' && morePage && (
           <div className="space-y-6">

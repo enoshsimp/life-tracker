@@ -3,6 +3,7 @@ import type { AppData } from './types';
 import {
   createDefaultData,
   defaultAreas,
+  defaultBossGameSettings,
   defaultGameSettings,
   DEFAULT_AREA_ID,
   DEFAULT_CHECK_IN_FROM,
@@ -60,7 +61,11 @@ function migrate(raw: any): AppData | null {
     // Version 6 adds the evening check-in time. Days, ticks and points are untouched.
     d = { ...d, version: 6, settings: { ...d.settings, checkInFrom: DEFAULT_CHECK_IN_FROM } };
   }
-  return d.version === 6 ? (d as AppData) : null;
+  if (d.version === 6) {
+    // Version 7 adds bad habits (bosses) and their point values. Days, ticks and points are untouched.
+    d = { ...d, version: 7, settings: { ...d.settings, badHabits: [], game: { ...d.settings.game, ...defaultBossGameSettings() } } };
+  }
+  return d.version === 7 ? (d as AppData) : null;
 }
 
 /* ---------- Backups ---------- */
