@@ -18,15 +18,13 @@ We build it in **small stages**. Each stage ends with something you can open and
 
 ### Screens
 
-Bottom tabs (never more than 5). Each tab appears when its stage is built.
+Bottom tabs (never more than 5). From Stage 6 the bar is **Today · + · Play · More**. Tabs from the Later stages (Health, Goals, Money) may join it, or live in More.
 
 | Tab | What it shows |
 |---|---|
-| **Today** | Habits grouped by Morning / Work / Evening / Anytime, wake and bed times, top priorities, points, streak and level |
-| **Health** | Measurements and charts, gym sessions this week, Skills & Lifts with personal bests |
-| **Goals** | Vision per life area, goals with milestones and progress bars, "Plan your year" |
-| **Money** | Monthly snapshot, spending quick-add and the monthly summary |
-| **More** | Inbox, Reviews, Reward shop, Reading, Stats and Settings |
+| **Today** | Progress ring, habits grouped by Morning / Work / Evening / Anytime (finished groups fold up), wake and bed times, top priorities, bad habits, evening check-in |
+| **Play** | Character (level and life-area stats), bad-habit bosses and trophies, daily quests, chest, badges |
+| **More** | Progress and ledger, Inbox, Reward shop, Settings (later: Reviews, Reading, Stats) |
 
 A raised **+** button in the middle of the bottom bar, on every screen, opens **quick capture**. (It sits in the bar rather than floating over the page, so it never covers a tick button.)
 
@@ -69,7 +67,9 @@ We keep the extras minimal: charts are drawn by hand (no chart library), and tab
 6. Logging a day takes under 2 minutes.
 7. Mobile-first, with 5 bottom tabs or fewer. Extra screens go in **More** or in sub-tabs.
 8. Ask before installing any package, and explain things in plain English.
-9. At the end of each stage: run the app, go through the test checklist, wait for an OK, then commit.
+9. At the end of each stage: run the app, go through the test checklist, wait for an OK, then commit and push so the live app updates.
+10. The live app holds real data. Every data change is tested by importing a backup made with the version that's currently live.
+11. Logging takes as few taps as possible, and game features add fun without adding effort.
 
 ---
 
@@ -79,19 +79,20 @@ All data is saved under **one key** in localStorage, with a **version number** s
 
 | Part | Holds | Added in |
 |---|---|---|
-| **settings** | Habits, life areas, work streams, sleep targets, day reset, week start, point values, rewards, review questions, spending categories | Stages 1–9 |
-| **days** | One record per app-day: what was ticked (full or min), wake and bed times, top priorities | Stage 1 |
+| **settings** | Habits (including bad habits), life areas, work streams, sleep targets, day reset, week start, check-in time, point values, rewards, cosmetics, sound | Stages 1–8 |
+| **days** | One record per app-day: what was ticked (full or min), wake and bed times, top priorities, check-in answers, slips and resisted urges | Stages 1, 6, 7 |
 | **inbox** | Quick captures with an optional tag (idea, task, reminder, explore) | Stage 3 |
-| **ledger** | Every point earned or spent (ticks, bonuses, personal bests, milestones, reviews, purchases) | Stage 4 |
+| **ledger** | Every point earned or spent (ticks, bonuses, clean days, combos, quests, chests, purchases) | Stage 4 |
 | **achievements** | Badges unlocked and when | Stage 4 |
 | **meta** | Date of the last backup | Stage 5 |
-| **measurements** | Metrics (name, unit) and dated values, shared by Health, Goals and Money | Stage 6 |
-| **vision, goals** | Vision text per life area and horizon, and goals with milestones and linked habits | Stage 7 |
-| **reviews** | Weekly and monthly review answers | Stage 8 |
-| **spending** | Spending entries (amount, category, note) | Stage 9 |
-| **books** | Books and their reading status | Stage 10 |
+| **chests** | What each day's chest gave | Stage 8 |
+| **measurements** | Metrics (name, unit) and dated values, shared by Health, Goals and Money | Later A |
+| **vision, goals** | Vision text per life area and horizon, and goals with milestones and linked habits | Later B |
+| **reviews** | Weekly and monthly review answers | Later C |
+| **spending** | Spending entries (amount, category, note) | Later D |
+| **books** | Books and their reading status | Later E |
 
-Streaks, shields, levels, life-area XP and balances are **calculated** from these, not stored separately.
+Streaks, shields, levels, life-area XP, balances, boss HP, trophies, quests and unlocked cosmetics are **calculated** from these, not stored separately.
 
 ---
 
@@ -174,7 +175,72 @@ A step-by-step setup wizard on first open, plus a Settings screen for every pers
 - [ ] After a new version is published, your data is still there
 - [ ] The public repository and its history contain no personal data
 
-### Stage 6 — Health tab
+### Stage 6 — Simpler Today
+Fewer taps to log a day.
+
+- **Tap a habit card = done (full). Hold = minimum. Tap a done card again = undo.** The separate Min/Full buttons go. While you hold, the card fills up so you can see the hold working (iPhones don't vibrate for web apps). Holding never selects text, opens the browser's long-press menu, or fires while you're scrolling. Yes/No habits: tap = done.
+- **Finished groups fold up:** a time-of-day group with everything done collapses into one line, e.g. "Morning ✓ 3/3". Tap to open it again.
+- **Progress ring** at the top shows how much of the day is done, with today's XP in the middle, next to your level, streak and shield.
+- **Evening check-in:** after a time set in Settings, a button opens swipe cards for anything not logged today. Swipe right = done, left = not done (buttons too, for when swiping is awkward). Bad-habit cards (Stage 7) ask Clean or Slipped.
+- **Bottom tabs** become Today · + · Play · More. Play says "coming soon" until Stage 7.
+- **Data upgrade:** adds the check-in time and saves check-in answers. Everything already saved stays as it is.
+
+**What you can test:**
+- [ ] Importing a backup from the live version keeps every habit, tick, point, level, streak and badge
+- [ ] Tapping a card ticks it at full; holding ticks it at minimum; tapping a done card unticks it (and the points go back)
+- [ ] Holding a card doesn't select text or open the long-press menu, and scrolling over cards never ticks them
+- [ ] A finished group folds into one line and opens again with a tap
+- [ ] The ring fills as you tick, and its XP matches the points earned today
+- [ ] The check-in button appears after the set time and shows only what's not logged yet; swiping right ticks, left skips
+- [ ] The bottom bar shows Today, +, Play and More
+
+### Stage 7 — Bad habits as bosses
+- **New habit kind "Reduce"** with three types: **Quit** (target zero), **Daily limit** (max N per day) and **Weekly limit** (max N per week, shown as "1 of 2 left").
+- **Clean by default:** you only tap **Slipped** (or **Used one** for a limit) when it happens. Days without a slip count as clean automatically.
+- **Resisted:** a button that gives bonus XP when you feel the urge and don't give in, limited to a few per day (editable) so it can't be spammed.
+- **Undo on the same day:** tap the Slipped, Used one or Resisted count to remove the last one. This also reverses the boss heal or the bonus.
+- **Bosses:** each bad habit is a boss with an HP bar on the Play tab. Each clean day deals damage. The boss is defeated after a target number of clean days (default 30, editable), becomes a **trophy**, and a new "Round 2" boss for the same habit appears.
+- **A slip** heals the boss a little and resets that habit's clean streak. It never removes XP and doesn't affect the main streak.
+- **Comeback bonus:** a clean day straight after a slip gives extra XP.
+- Bad habits have a life area like other habits. They're set up in a new optional step of the setup wizard and in Settings.
+- Boss HP, trophies and clean streaks are calculated from the saved slips, never stored.
+- **Data upgrade:** adds bad habits, slips, resisted urges and the new point values. Everything already saved stays as it is.
+
+**What you can test:**
+- [ ] Importing a backup from the live version (and from Stage 6) keeps everything
+- [ ] You can add a Quit, Daily limit and Weekly limit habit in the wizard and in Settings
+- [ ] A weekly limit shows "1 of 2 left" after one use
+- [ ] A day with no slip counts as clean the next day: the boss loses HP and you earn XP
+- [ ] Resisted gives XP up to the daily cap, then stops
+- [ ] A slip heals the boss and resets that habit's clean streak, but your XP and main streak stay
+- [ ] Tapping the count removes the last slip or resist and undoes its effect
+- [ ] A clean day after a slip earns the comeback bonus
+- [ ] Reaching the target defeats the boss, adds a trophy and starts Round 2
+
+### Stage 8 — Game pack
+- **Combos:** finishing a whole time-of-day group gives a bonus with an animation.
+- **Daily quests:** 3 small random quests a day, based on your own habits (e.g. "Finish Morning before 11am", "Resist one urge", "Capture an idea"). Bonus XP for each, extra for all 3.
+- **Daily chest:** completing the day (or the evening check-in) opens a chest with a random reward: XP, a streak shield, or a cosmetic (a colour theme or badge style). Shields from chests are kept until used, up to 3; at the cap the chest gives XP instead. Cosmetics are unlocked in the game, never bought with real money.
+- **Reward shop:** create real-life rewards with XP costs and buy them with your balance. Rewards you can't afford are shown but can't be bought. Purchases go in the ledger and lower your balance, never your level.
+- **Character screen on Play:** overall level, plus each life area shown as an RPG stat with its own level.
+- **Sounds and stronger feedback** (confetti, vibration), with a mute switch in Settings.
+- All new point values are editable in Settings.
+- **Data upgrade:** adds rewards, cosmetics, sound and chests. Everything already saved stays as it is.
+
+**What you can test:**
+- [ ] Importing a backup from the live version keeps everything
+- [ ] Finishing a group plays the combo and adds the bonus; undoing a tick takes it back
+- [ ] Three quests show each day, they fit your habits, and finishing them adds XP (extra for all 3)
+- [ ] Completing the day or the check-in opens one chest; its reward shows up (XP in the ledger, a shield, or a new cosmetic in Settings)
+- [ ] With 3 shields banked, a chest gives XP instead of a shield
+- [ ] You can add, edit and delete rewards; buying lowers your balance and appears in the ledger; you can't buy what you can't afford
+- [ ] Play shows your level and every life area as a stat
+- [ ] Sounds play, and the mute switch silences them
+
+## 7. Later
+These were Stages 6 to 11 before the plan changed. They'll be built after Stage 8, in this order.
+
+### Later A — Health tab
 - **Measurements log:** dated numbers for any metric (weight, waist, body fat, plus your own), quick to add. Health, Goals and Money all use it.
 - **Charts** for each metric.
 - **Gym this week** against target, from the gym habit.
@@ -186,7 +252,7 @@ A step-by-step setup wizard on first open, plus a Settings screen for every pers
 - [ ] "Gym this week" matches your gym ticks
 - [ ] Beating your best on a skill plays the celebration and adds points to the ledger
 
-### Stage 7 — Vision + Goals
+### Later B — Vision + Goals
 - **Vision:** a short text per life area for 1, 3, 5 and 10 years.
 - **Goals:** a life area, a horizon (year, quarter, month or week) and a measurable target. Progress comes from a number you update, a Measurements metric, or how consistently you do the linked habits.
 - **Milestones**, linked habits and progress bars. Points for milestones and finished goals.
@@ -199,21 +265,17 @@ A step-by-step setup wizard on first open, plus a Settings screen for every pers
 - [ ] Ticking a milestone or finishing a goal adds points
 - [ ] "Plan your year" can be run any time from Goals
 
-### Stage 8 — Reviews + reward shop
+### Later C — Reviews
 - **Weekly review** (Sunday, on the last day of your week): stats filled in automatically (consistency, points, goal progress, neglected life areas), 3 to 5 reflection questions (editable), and sorting the Inbox.
 - **Monthly review** on the 1st.
 - Points for completing a review.
-- **Reward shop:** create rewards with point costs. Rewards you can't afford are shown but can't be bought. Purchases go in the ledger.
 
 **What you can test:**
 - [ ] The weekly review appears on Sunday with stats already filled in, and your answers are saved
 - [ ] The monthly review appears on the 1st
 - [ ] You can sort Inbox items during the review
-- [ ] You can add, edit and delete rewards
-- [ ] Buying a reward lowers your balance and appears in the ledger
-- [ ] You can't buy a reward you can't afford
 
-### Stage 9 — Money
+### Later D — Money
 - **Monthly snapshot:** investments, cash reserves, monthly income and net worth, saved into the Measurements log so goals can track them.
 - **Spending quick-add:** amount, category and an optional note in under 10 seconds (also from the + button). Categories are editable.
 - A monthly summary by category.
@@ -226,7 +288,7 @@ A step-by-step setup wizard on first open, plus a Settings screen for every pers
 - [ ] The monthly summary totals each category correctly
 - [ ] Logging on consecutive days builds the logging streak and earns points
 
-### Stage 10 — Reading + learning
+### Later E — Reading + learning
 - A **books list:** want to read, reading, done.
 - **Reading time** comes from a reading habit you choose.
 - **Ideas** are quick captures tagged to a book or topic.
@@ -236,7 +298,7 @@ A step-by-step setup wizard on first open, plus a Settings screen for every pers
 - [ ] Ticking your reading habit shows on the book you're reading
 - [ ] A quick capture can be tagged to a book and shows up under it
 
-### Stage 11 — Analytics
+### Later F — Analytics
 - Consistency per habit, balance across life areas, trends over time, and goal progress over time.
 
 **What you can test:**
@@ -244,13 +306,13 @@ A step-by-step setup wizard on first open, plus a Settings screen for every pers
 - [ ] The life-area balance shows which areas are getting attention and which are neglected
 - [ ] Trends and goal progress match your logged data
 
-### Later (not in this plan)
+### Other ideas (not planned yet)
 - Built-in AI. For now, the backup file can be uploaded to a Claude chat.
 - Automated tests for the trickiest logic (day boundary, streaks, shields, points).
 
 ---
 
-## 7. How we test
+## 8. How we test
 
 - Each stage has a checklist. We go through it together before moving on.
 - After any data upgrade, we check that existing data is still there.

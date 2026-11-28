@@ -31,6 +31,35 @@ button {
   touch-action: manipulation;
 }
 
+/*
+ * Habit cards are pressed and held, so they must not select text, show the
+ * long-press menu or zoom on double-tap. Vertical scrolling still works.
+ */
+.press-card {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* While a card is held, a tint grows from the left until the hold counts. */
+@keyframes hold-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.hold-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  pointer-events: none;
+  animation: hold-fill 450ms linear forwards;
+}
+
+/* Progress ring: the coloured arc grows as the day fills up. */
+.ring-arc {
+  transition: stroke-dashoffset 600ms cubic-bezier(0.3, 1, 0.4, 1);
+}
+
 /* Tick feedback: the button pops, and a ring bursts outwards behind it. */
 @keyframes pop {
   0% { transform: scale(1); }

@@ -5,6 +5,7 @@ import {
   defaultAreas,
   defaultGameSettings,
   DEFAULT_AREA_ID,
+  DEFAULT_CHECK_IN_FROM,
   DEFAULT_FULL_POINTS,
   DEFAULT_MIN_POINTS,
   WORK_AREA_ID,
@@ -55,7 +56,11 @@ function migrate(raw: any): AppData | null {
     // Version 5 adds meta, which remembers when you last saved a backup.
     d = { ...d, version: 5, meta: {} };
   }
-  return d.version === 5 ? (d as AppData) : null;
+  if (d.version === 5) {
+    // Version 6 adds the evening check-in time. Days, ticks and points are untouched.
+    d = { ...d, version: 6, settings: { ...d.settings, checkInFrom: DEFAULT_CHECK_IN_FROM } };
+  }
+  return d.version === 6 ? (d as AppData) : null;
 }
 
 /* ---------- Backups ---------- */

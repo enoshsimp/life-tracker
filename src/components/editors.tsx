@@ -402,6 +402,15 @@ export function DayWeekEditor({ settings, onChange }: EditorProps) {
           ]}
         />
       </Field>
+      <Field label="Evening check-in from" hint="After this time, Today offers a quick swipe through anything not logged yet">
+        <input
+          type="time"
+          value={settings.checkInFrom}
+          onChange={(e) => e.target.value && onChange((s) => ({ ...s, checkInFrom: e.target.value }))}
+          aria-label="Evening check-in from"
+          className={inputClass}
+        />
+      </Field>
     </div>
   );
 }

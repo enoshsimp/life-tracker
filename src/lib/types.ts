@@ -74,6 +74,8 @@ export interface Settings {
   wakeBy: string;
   /** Latest bedtime ("HH:MM") that still earns the full version. */
   bedBy: string;
+  /** From this time ("HH:MM") Today offers the evening check-in. */
+  checkInFrom: string;
   game: GameSettings;
 }
 
@@ -88,11 +90,16 @@ export interface Priority {
   done: boolean;
 }
 
+/** An evening check-in answer that isn't a tick: "not done today". */
+export type CheckInAnswer = 'no';
+
 export interface DayRecord {
   ticks: Record<string, TickLevel>;
   wake?: TimeLog;
   bed?: TimeLog;
   priorities: Record<string, Priority>;
+  /** Evening check-in: habit or work-stream id → answered "not done", so its card doesn't come back. */
+  checkIn?: Record<string, CheckInAnswer>;
 }
 
 export type CaptureTag = 'idea' | 'task' | 'reminder' | 'explore';
@@ -133,7 +140,7 @@ export interface Meta {
 }
 
 export interface AppData {
-  version: 5;
+  version: 6;
   /** False until the first-run setup wizard has been completed. */
   setupDone: boolean;
   settings: Settings;

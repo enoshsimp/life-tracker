@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import type { Habit, Priority, TickLevel, TimeLog } from '../lib/types';
 import { formatTime } from '../lib/day';
 import { buzz } from '../lib/feedback';
-import { CheckIcon, TickButton } from './TickButton';
+import { usePressHold } from '../lib/usePressHold';
+import { CheckIcon } from './TickButton';
 
 function Card({ done, children }: { done: boolean; children: ReactNode }) {
   return (
@@ -33,12 +34,17 @@ function HabitMeta({ areaName, weekly, label }: { areaName: string; weekly?: { c
   );
 }
 
+/**
+ * The whole card is the button: tap = done (full), hold = minimum, tap a done card = undo.
+ * Yes/No habits have no minimum, so holding one simply ticks it.
+ */
 export function HabitRow({
   habit,
   tick,
   onChange,
   areaName,
   weekly,
+  notToday,
 }: {
   habit: Habit;
   tick: TickLevel | undefined;
@@ -46,43 +52,62 @@ export function HabitRow({
   areaName: string;
   /** Progress for a times-per-week habit. */
   weekly?: { count: number; target: number };
+  /** Answered "not done" in the evening check-in. */
+  notToday?: boolean;
 }) {
-  const toggle = (level: TickLevel) => onChange(tick === level ? undefined : level);
+  const [burst, setBurst] = useState(0);
+  const hasMin = habit.kind === 'fullmin';
   const weekDone = !!weekly && weekly.count >= weekly.target;
 
-  if (habit.kind === 'check') {
-    return (
-      <Card done={!!tick || weekDone}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <p className="font-semibold">{habit.name}</p>
-            <HabitMeta areaName={areaName} weekly={weekly} />
-          </div>
-          <TickButton active={tick === 'full'} tone="full" onToggle={() => toggle('full')} ariaLabel={`${habit.name}: yes`}>
-            Yes
-          </TickButton>
-        </div>
-      </Card>
-    );
-  }
+  const set = (level: TickLevel | undefined) => {
+    if (level) {
+      setBurst((n) => n + 1);
+      buzz(level);
+    } else buzz('undo');
+    onChange(level);
+  };
+  const { holding, handlers } = usePressHold(
+    () => set(tick ? undefined : 'full'),
+    () => set(hasMin ? 'min' : 'full'),
+  );
+
+  const tone = tick === 'min' ? 'min' : 'full';
+  const label = hasMin ? (tick === 'min' ? habit.minLabel : habit.fullLabel) : undefined;
+  const state = tick === 'min' ? 'done at minimum' : tick ? 'done' : 'not done';
 
   return (
-    <Card done={!!tick || weekDone}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="font-semibold">{habit.name}</p>
-          <HabitMeta areaName={areaName} weekly={weekly} label={tick === 'min' ? habit.minLabel : habit.fullLabel} />
+    <li>
+      <button
+        type="button"
+        {...handlers}
+        // Stops the iPhone long-press menu. Set here because the CSS build drops this Safari-only setting.
+        style={{ WebkitTouchCallout: 'none' }}
+        aria-label={`${habit.name}: ${state}. ${tick ? 'Tap to undo.' : hasMin ? 'Tap for full, hold for minimum.' : 'Tap when done.'}`}
+        className={`press-card relative w-full overflow-hidden rounded-2xl border bg-surface p-4 text-left transition-colors duration-300 ${
+          tick ? (tick === 'min' ? 'border-min/50' : 'border-full/50') : weekDone ? 'border-full/40' : 'border-line'
+        }`}
+      >
+        {/* Fills from the left while you hold, so you can see the hold working. */}
+        {holding && hasMin && <span className="hold-fill bg-min/15" aria-hidden />}
+        <div className="relative flex items-center justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <p className={`font-semibold ${tick ? 'text-muted' : ''}`}>{habit.name}</p>
+            <HabitMeta areaName={areaName} weekly={weekly} label={notToday && !tick ? 'Not today' : label} />
+          </div>
+          <span
+            className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition-colors ${
+              tick ? (tone === 'min' ? 'border-min bg-min text-bg' : 'border-full bg-full text-bg') : 'border-line text-muted'
+            }`}
+            aria-hidden
+          >
+            <span key={burst} className={`grid place-items-center ${burst && tick ? 'animate-pop' : ''}`}>
+              {tick === 'min' ? <span className="text-[10px] font-black uppercase">Min</span> : tick ? <CheckIcon className="h-5 w-5" /> : null}
+            </span>
+            {burst > 0 && tick && <span key={`r${burst}`} className={`burst-ring ${tone === 'min' ? 'text-min' : 'text-full'}`} />}
+          </span>
         </div>
-        <div className="flex gap-2">
-          <TickButton active={tick === 'min'} tone="min" onToggle={() => toggle('min')} ariaLabel={`${habit.name}: minimum`}>
-            Min
-          </TickButton>
-          <TickButton active={tick === 'full'} tone="full" onToggle={() => toggle('full')} ariaLabel={`${habit.name}: full`}>
-            Full
-          </TickButton>
-        </div>
-      </div>
-    </Card>
+      </button>
+    </li>
   );
 }
 

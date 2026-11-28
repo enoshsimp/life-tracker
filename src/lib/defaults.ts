@@ -35,6 +35,9 @@ export function defaultGameSettings(): GameSettings {
   return { sleepFull: 10, sleepMin: 5, priorityPoints: 10, weeklyBonus: 25, bonusChance: 0.1 };
 }
 
+/** When the evening check-in is first offered. */
+export const DEFAULT_CHECK_IN_FROM = '20:00';
+
 export const TIMES_OF_DAY: { id: TimeOfDay; label: string }[] = [
   { id: 'morning', label: 'Morning' },
   { id: 'work', label: 'Work' },
@@ -51,6 +54,7 @@ export function blankSettings(): Settings {
     workStreams: [],
     wakeBy: '07:00',
     bedBy: '23:00',
+    checkInFrom: DEFAULT_CHECK_IN_FROM,
     game: defaultGameSettings(),
   };
 }
@@ -73,5 +77,5 @@ export function blankHabit(kind: Habit['kind'] = 'fullmin'): Habit {
 }
 
 export function createDefaultData(): AppData {
-  return { version: 5, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {}, meta: {} };
+  return { version: 6, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {}, meta: {} };
 }

@@ -112,7 +112,7 @@ export function Celebrations({ queue, onDone }: { queue: Fx[]; onDone: (id: stri
   return (
     <>
       {pills.length > 0 && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col items-center gap-2">
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2">
           {pills.map((f) => (
             <Pill key={f.id} fx={f} onDone={() => onDone(f.id)} />
           ))}
