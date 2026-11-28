@@ -3,6 +3,7 @@ import type { AppData, DayRecord, TickLevel } from '../lib/types';
 import { isShownOn, weeklyCount } from '../lib/schedule';
 import { syncDay } from '../lib/game';
 import { weekUses } from '../lib/bosses';
+import { openChest } from '../lib/chest';
 import { buzz } from '../lib/feedback';
 import { CheckIcon } from './TickButton';
 
@@ -83,6 +84,11 @@ export function CheckIn({
   const item = items[index];
   const finished = index >= items.length;
   const bad = item?.type === 'bad';
+
+  // Finishing the check-in opens today's chest (if completing the day hasn't already).
+  useEffect(() => {
+    if (finished && items.length) update((d) => openChest(d, dayKey));
+  }, [finished, items.length, update, dayKey]);
 
   function answer(a: Answer) {
     if (!item || leaving) return;

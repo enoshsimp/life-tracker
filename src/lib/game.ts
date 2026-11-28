@@ -6,10 +6,13 @@
  * stored a second time.
  */
 import type { AppData, Habit, LedgerEntry, LedgerKind } from './types';
-import { SLEEP_AREA_ID } from './defaults';
+import { DEFAULT_AREA_ID, SLEEP_AREA_ID } from './defaults';
 import { dateKey, parseKey } from './day';
 import { newId } from './id';
 import { weekKeys } from './schedule';
+import { hash01 } from './hash';
+import { COMBO_MIN_ITEMS, groupProgress } from './groups';
+import { questsFor } from './quests';
 
 /* ---------- Random bonus ---------- */
 
@@ -19,19 +22,13 @@ import { weekKeys } from './schedule';
  */
 export function isBonus(day: string, kind: LedgerKind, ref: string, chance: number): boolean {
   if (chance <= 0) return false;
-  // FNV-1a hash of the text, turned into a number between 0 and 1.
-  let h = 0x811c9dc5;
-  for (const ch of `${day}|${kind}|${ref}`) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0) / 0x100000000 < chance;
+  return hash01(`${day}|${kind}|${ref}`) < chance;
 }
 
 /* ---------- Keeping the ledger in step with a day's ticks ---------- */
 
 /** Ledger lines that follow what's logged on a day, so undoing removes them. Clean days and bosses are added by settleDays instead. */
-const DAY_KINDS = new Set<LedgerKind>(['habit', 'wake', 'bed', 'priority', 'resisted']);
+const DAY_KINDS = new Set<LedgerKind>(['habit', 'wake', 'bed', 'priority', 'resisted', 'combo', 'quest']);
 const entryKey = (e: Pick<LedgerEntry, 'kind' | 'day' | 'ref'>) => `${e.kind}|${e.day}|${e.ref}`;
 
 /**
@@ -40,7 +37,7 @@ const entryKey = (e: Pick<LedgerEntry, 'kind' | 'day' | 'ref'>) => `${e.kind}|${
  * back, and switching full ↔ minimum adjusts them. Untouched entries keep
  * their id and time.
  */
-export function syncDay(data: AppData, dayKey: string, at: Date = new Date()): AppData {
+export function syncDay(data: AppData, dayKey: string, at: Date = new Date(), withGamePack = true): AppData {
   const s = data.settings;
   const g = s.game;
   const rec = data.days[dayKey];
@@ -89,13 +86,32 @@ export function syncDay(data: AppData, dayKey: string, at: Date = new Date()): A
     }
   }
 
-  const merged = wanted.map((w): LedgerEntry => {
-    const o = old.get(entryKey(w));
-    if (o && o.amount === w.amount && o.areaId === w.areaId && !!o.bonus === !!w.bonus) return o;
-    return { ...w, id: o?.id ?? newId(), at: o?.at ?? at.toISOString() };
-  });
+  // Combos: a whole time-of-day group done (groups of 2 or more). Their XP goes to the habits' general area, Self.
+  const groups: Partial<ReturnType<typeof groupProgress>> = withGamePack ? groupProgress(data, dayKey) : {};
+  for (const [time, p] of Object.entries(groups)) {
+    if (g.combo > 0 && p.total >= COMBO_MIN_ITEMS && p.done === p.total) {
+      wanted.push({ day: dayKey, kind: 'combo', ref: time, amount: g.combo, areaId: DEFAULT_AREA_ID });
+    }
+  }
 
-  return { ...data, ledger: [...data.ledger.filter((e) => !isReplaced(e)), ...merged] };
+  const merge = (list: Omit<LedgerEntry, 'id' | 'at'>[]) =>
+    list.map((w): LedgerEntry => {
+      const o = old.get(entryKey(w));
+      if (o && o.amount === w.amount && o.areaId === w.areaId && !!o.bonus === !!w.bonus) return o;
+      return { ...w, id: o?.id ?? newId(), at: o?.at ?? at.toISOString() };
+    });
+
+  const kept = data.ledger.filter((e) => !isReplaced(e));
+  const next: AppData = { ...data, ledger: [...kept, ...merge(wanted)] };
+
+  // Quests are judged on the updated day (one of them needs the Morning combo's time).
+  const quests: Omit<LedgerEntry, 'id' | 'at'>[] = [];
+  const list = withGamePack ? questsFor(next, dayKey) : [];
+  for (const q of list) if (q.done && g.quest > 0) quests.push({ day: dayKey, kind: 'quest', ref: q.id, amount: g.quest, areaId: DEFAULT_AREA_ID });
+  if (list.length === 3 && list.every((q) => q.done) && g.questAll > 0) {
+    quests.push({ day: dayKey, kind: 'quest', ref: 'all', amount: g.questAll, areaId: DEFAULT_AREA_ID });
+  }
+  return quests.length ? { ...next, ledger: [...next.ledger, ...merge(quests)] } : next;
 }
 
 /* ---------- Levels ---------- */
@@ -182,24 +198,37 @@ export interface StreakInfo {
   fullDays: number;
   /** Whether today already counts towards the streak. */
   todayDone: boolean;
+  /** Spare shields from daily chests, kept until a missed day needs one. */
+  banked: number;
 }
+
+/** Most shields that can be kept from chests at once. */
+export const MAX_BANKED_SHIELDS = 3;
 
 /**
  * Walks every day from the first one logged up to today.
  * - A complete day adds 1.
  * - The first miss in a week uses that week's shield; the streak survives.
- * - A second miss in the same week resets the streak.
+ * - A second miss in the same week uses a banked shield from a chest, if there is one; otherwise it resets the streak.
  * - A times-a-week habit that missed its target makes the last day of that week a miss.
  * - Today only counts once it's complete; it never breaks the streak while it's still going.
+ * - A shield from a chest can be used from the day after it was found.
  */
 export function computeStreak(data: AppData, today: Date): StreakInfo {
   const keys = Object.keys(data.days).sort();
   const todayKey = dateKey(today);
-  const info: StreakInfo = { current: 0, best: 0, shieldUsed: false, fullDays: 0, todayDone: false };
-  if (!keys.length || keys[0] > todayKey) return info;
+  const chests = data.chests ?? {};
+  const info: StreakInfo = { current: 0, best: 0, shieldUsed: false, fullDays: 0, todayDone: false, banked: 0 };
+  if (!keys.length || keys[0] > todayKey) {
+    info.banked = Math.min(MAX_BANKED_SHIELDS, Object.entries(chests).filter(([k, c]) => k <= todayKey && c.type === 'shield').length);
+    return info;
+  }
 
   const weekStartsOn = data.settings.weekStartsOn;
   let shieldUsed = false;
+  let banked = 0;
+  // Shields found before the first logged day.
+  for (const [k, c] of Object.entries(chests)) if (k < keys[0] && c.type === 'shield') banked = Math.min(MAX_BANKED_SHIELDS, banked + 1);
   for (let d = parseKey(keys[0]); dateKey(d) <= todayKey; d.setDate(d.getDate() + 1)) {
     const key = dateKey(d);
     const date = new Date(d);
@@ -214,16 +243,20 @@ export function computeStreak(data: AppData, today: Date): StreakInfo {
         info.current += 1;
         info.todayDone = true;
       }
+      if (chests[key]?.type === 'shield') banked = Math.min(MAX_BANKED_SHIELDS, banked + 1);
       break;
     }
 
     const missed = !complete || (key === week[6] && weeklyMissed(data, week));
     if (!missed) info.current += 1;
     else if (!shieldUsed) shieldUsed = true;
+    else if (banked > 0) banked -= 1;
     else info.current = 0;
     info.best = Math.max(info.best, info.current);
+    if (chests[key]?.type === 'shield') banked = Math.min(MAX_BANKED_SHIELDS, banked + 1);
   }
   info.best = Math.max(info.best, info.current);
   info.shieldUsed = shieldUsed;
+  info.banked = banked;
   return info;
 }

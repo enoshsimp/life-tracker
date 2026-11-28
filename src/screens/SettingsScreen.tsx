@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { AppData, Settings } from '../lib/types';
 import { createDefaultData } from '../lib/defaults';
 import { BackupSection } from '../components/Backup';
+import { LookEditor } from '../components/LookEditor';
 import { AreasEditor, BadHabitsEditor, DayWeekEditor, GymEditor, HabitsEditor, PointsEditor, SleepEditor, WorkStreamsEditor } from '../components/editors';
 
 /** Every personal value, editable. Changes save and apply to Today straight away. */
@@ -52,6 +53,9 @@ export function SettingsScreen({
       </Section>
       <Section title="Day and week">
         <DayWeekEditor {...props} />
+      </Section>
+      <Section title="Look and sound">
+        <LookEditor data={data} onChange={onChange} />
       </Section>
 
       <Section title="Backup">

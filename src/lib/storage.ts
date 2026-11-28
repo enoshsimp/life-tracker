@@ -4,7 +4,9 @@ import {
   createDefaultData,
   defaultAreas,
   defaultBossGameSettings,
+  defaultCosmetics,
   defaultGameSettings,
+  defaultPackGameSettings,
   DEFAULT_AREA_ID,
   DEFAULT_CHECK_IN_FROM,
   DEFAULT_FULL_POINTS,
@@ -49,7 +51,8 @@ function migrate(raw: any): AppData | null {
     for (const key of Object.keys(next.days).sort()) {
       const noon = parseKey(key);
       noon.setHours(12);
-      next = syncDay(next, key, noon);
+      // Combos and quests didn't exist yet, so old days don't earn them.
+      next = syncDay(next, key, noon, false);
     }
     d = next;
   }
@@ -65,7 +68,23 @@ function migrate(raw: any): AppData | null {
     // Version 7 adds bad habits (bosses) and their point values. Days, ticks and points are untouched.
     d = { ...d, version: 7, settings: { ...d.settings, badHabits: [], game: { ...d.settings.game, ...defaultBossGameSettings() } } };
   }
-  return d.version === 7 ? (d as AppData) : null;
+  if (d.version === 7) {
+    // Version 8 adds the game pack: rewards, looks, sound, chests and their point values. Everything saved stays as it is.
+    d = {
+      ...d,
+      version: 8,
+      settings: {
+        ...d.settings,
+        rewards: [],
+        cosmetics: defaultCosmetics(),
+        sound: true,
+        haptics: true,
+        game: { ...d.settings.game, ...defaultPackGameSettings() },
+      },
+      chests: {},
+    };
+  }
+  return d.version === 8 ? (d as AppData) : null;
 }
 
 /* ---------- Backups ---------- */

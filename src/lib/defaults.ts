@@ -1,4 +1,4 @@
-import type { AppData, BadHabit, GameSettings, Habit, LifeArea, Settings, TimeOfDay } from './types';
+import type { AppData, BadHabit, Cosmetics, GameSettings, Habit, LifeArea, Settings, TimeOfDay } from './types';
 import { newId } from './id';
 import { appDayKey, dateKey } from './day';
 
@@ -36,9 +36,25 @@ export function defaultBossGameSettings() {
   return { cleanDay: 5, comeback: 15, resisted: 3, resistedCap: 3, slipHeal: 3, bossDefeat: 100 };
 }
 
-export function defaultGameSettings(): GameSettings {
-  return { sleepFull: 10, sleepMin: 5, priorityPoints: 10, weeklyBonus: 25, bonusChance: 0.1, ...defaultBossGameSettings() };
+/** Point values for combos, quests and the chest (added in data version 8). */
+export function defaultPackGameSettings() {
+  return { combo: 15, quest: 10, questAll: 25, chestXp: 20 };
 }
+
+export function defaultGameSettings(): GameSettings {
+  return {
+    sleepFull: 10,
+    sleepMin: 5,
+    priorityPoints: 10,
+    weeklyBonus: 25,
+    bonusChance: 0.1,
+    ...defaultBossGameSettings(),
+    ...defaultPackGameSettings(),
+  };
+}
+
+/** The look everyone starts with. */
+export const defaultCosmetics = (): Cosmetics => ({ theme: 'default', badge: 'star' });
 
 /** Clean days a new boss needs to be defeated. */
 export const DEFAULT_BOSS_TARGET = 30;
@@ -65,6 +81,10 @@ export function blankSettings(): Settings {
     bedBy: '23:00',
     checkInFrom: DEFAULT_CHECK_IN_FROM,
     game: defaultGameSettings(),
+    rewards: [],
+    cosmetics: defaultCosmetics(),
+    sound: true,
+    haptics: true,
   };
 }
 
@@ -99,5 +119,5 @@ export function blankBadHabit(dayStartHour: number): BadHabit {
 }
 
 export function createDefaultData(): AppData {
-  return { version: 7, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {}, meta: {} };
+  return { version: 8, setupDone: false, settings: blankSettings(), days: {}, inbox: [], ledger: [], achievements: {}, chests: {}, meta: {} };
 }

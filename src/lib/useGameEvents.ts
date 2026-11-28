@@ -4,6 +4,7 @@ import type { Fx } from '../components/Celebrations';
 import { areaLevel, areaXp, overallLevel, totalXp } from './game';
 import { newlyEarned } from './achievements';
 import { excessOn } from './bosses';
+import { TIMES_OF_DAY } from './defaults';
 import { appDayDate, appDayKey, getNow } from './day';
 import { newId } from './id';
 
@@ -13,6 +14,8 @@ interface Snapshot {
   areaLevels: Record<string, number>;
   /** Bad habit id → today's slips past the limit (each one heals its boss). */
   excess: Record<string, number>;
+  /** Days whose chest is open. */
+  chests: Set<string>;
 }
 
 function snapshot(data: AppData): Snapshot {
@@ -23,6 +26,7 @@ function snapshot(data: AppData): Snapshot {
     level: overallLevel(totalXp(data)).level,
     areaLevels: Object.fromEntries(data.settings.areas.map((a) => [a.id, areaLevel(xp[a.id] ?? 0).level])),
     excess: Object.fromEntries(data.settings.badHabits.map((h) => [h.id, excessOn(data, h, todayKey)])),
+    chests: new Set(Object.keys(data.chests)),
   };
 }
 
@@ -33,6 +37,12 @@ const NOTES: Partial<Record<LedgerKind, string>> = {
   comeback: 'Comeback!',
   boss: 'Boss defeated!',
 };
+
+function noteFor(kind: LedgerKind, ref: string): string | undefined {
+  if (kind === 'combo') return `${TIMES_OF_DAY.find((t) => t.id === ref)?.label ?? ''} combo!`;
+  if (kind === 'quest') return ref === 'all' ? 'All 3 quests!' : 'Quest done!';
+  return NOTES[kind];
+}
 
 /**
  * Watches the data for things worth celebrating (points earned, level-ups,
@@ -69,7 +79,9 @@ export function useGameEvents(data: AppData, update: (fn: (d: AppData) => AppDat
           hits.set(e.ref, { damage: h.damage + 1, xp: h.xp + e.amount });
           continue;
         }
-        if (gained > 0) fx.push({ id: newId(), type: 'points', amount: gained, bonus: e.bonus, note: NOTES[e.kind] });
+        // The chest's XP is shown on the chest card itself.
+        if (e.kind === 'chest') continue;
+        if (gained > 0) fx.push({ id: newId(), type: 'points', amount: gained, bonus: e.bonus, note: noteFor(e.kind, e.ref), combo: e.kind === 'combo' });
         if (isNew && e.kind === 'boss') {
           const [habitId, round] = e.ref.split('#');
           defeats.push({ habitId, round: Number(round) });
@@ -84,6 +96,9 @@ export function useGameEvents(data: AppData, update: (fn: (d: AppData) => AppDat
         if (more > 0 && heal > 0) fx.push({ id: newId(), type: 'boss-heal', name: bossName(h.id), heal });
       }
       for (const d of defeats) fx.push({ id: newId(), type: 'boss-defeated', name: bossName(d.habitId), round: d.round });
+      for (const [day, reward] of Object.entries(data.chests)) {
+        if (!before.chests.has(day)) fx.push({ id: newId(), type: 'chest', reward });
+      }
       for (const a of data.settings.areas) {
         if (now.areaLevels[a.id] > (before.areaLevels[a.id] ?? 1)) {
           fx.push({ id: newId(), type: 'area', name: a.name.trim() || 'Life area', level: now.areaLevels[a.id] });

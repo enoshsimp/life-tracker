@@ -4,6 +4,8 @@ import { appDayDate, getNow, parseKey } from '../lib/day';
 import { areaLevel, areaXp, balance, computeStreak, overallLevel, totalXp } from '../lib/game';
 import { BADGES } from '../lib/achievements';
 import { BadgeIcon } from '../components/Celebrations';
+import { TIMES_OF_DAY } from '../lib/defaults';
+import { questTitle } from '../lib/quests';
 
 /** Your character sheet: level, streak, life-area stats, badges and the points ledger. */
 export function Progress({ data }: { data: AppData }) {
@@ -37,11 +39,11 @@ export function Progress({ data }: { data: AppData }) {
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Current" value={streak.current} hint="days" />
           <Stat label="Best" value={streak.best} hint="days" />
-          <Stat label="Shield" value={streak.shieldUsed ? 'Used' : 'Ready'} hint="this week" />
+          <Stat label="Shield" value={streak.shieldUsed ? 'Used' : 'Ready'} hint={streak.banked ? `+${streak.banked} banked` : 'this week'} />
         </div>
         <p className="mt-2 text-xs text-muted">
           A day counts when every habit due that day is done (at least minimum) and wake and bed are logged. One missed day a week is
-          covered by the shield.
+          covered by the shield. Shields from daily chests (up to 3) cover extra missed days.
         </p>
       </Section>
 
@@ -140,6 +142,14 @@ function ledgerLabel(data: AppData, e: LedgerEntry): string {
       const [id, round] = e.ref.split('#');
       return `Boss defeated: ${badHabit(id)} (round ${round})`;
     }
+    case 'combo':
+      return `Combo: ${TIMES_OF_DAY.find((t) => t.id === e.ref)?.label ?? 'Group'} cleared`;
+    case 'quest':
+      return `Quest: ${questTitle(data, e.ref)}`;
+    case 'chest':
+      return 'Daily chest';
+    case 'purchase':
+      return `Bought: ${e.label || 'Reward'}`;
   }
 }
 

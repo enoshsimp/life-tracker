@@ -479,6 +479,23 @@ export function PointsEditor({ settings, onChange }: EditorProps) {
         </Field>
       </div>
       <p className="text-xs text-muted">A comeback is a clean day straight after a slip. Clean-day points arrive once the day is over.</p>
+
+      <p className="pt-2 text-xs font-bold uppercase tracking-widest text-muted">Combos, quests and chest</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Group combo">
+          <NumberInput value={g.combo} onChange={(combo) => set({ combo })} ariaLabel="Combo points" suffix="pts" />
+        </Field>
+        <Field label="Chest XP">
+          <NumberInput value={g.chestXp} onChange={(chestXp) => set({ chestXp })} ariaLabel="Chest XP" suffix="pts" />
+        </Field>
+        <Field label="Each quest">
+          <NumberInput value={g.quest} onChange={(quest) => set({ quest })} ariaLabel="Points per quest" suffix="pts" />
+        </Field>
+        <Field label="All 3 quests">
+          <NumberInput value={g.questAll} onChange={(questAll) => set({ questAll })} ariaLabel="Bonus for all three quests" suffix="pts" />
+        </Field>
+      </div>
+      <p className="text-xs text-muted">A combo is a whole group on Today (2 or more items) done. A chest's XP is sometimes doubled.</p>
     </div>
   );
 }

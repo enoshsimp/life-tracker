@@ -196,7 +196,7 @@ export function BadHabitRow({
           count={slips}
           tone="bad"
           onAdd={() => {
-            buzz('min');
+            buzz('slip');
             onSlip(1);
           }}
           onRemove={() => {

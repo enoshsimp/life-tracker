@@ -1,5 +1,8 @@
-import type { AppData } from '../lib/types';
-import { overallLevel, totalXp } from '../lib/game';
+import type { AppData, ChestReward } from '../lib/types';
+import { areaLevel, areaXp, balance, computeStreak, overallLevel, totalXp } from '../lib/game';
+import { questsFor } from '../lib/quests';
+import { ALL_COSMETICS } from '../lib/cosmetics';
+import { QuestStrip } from '../components/Quests';
 import { allBosses, describeReduce, type BossState } from '../lib/bosses';
 import { appDayKey, getNow, parseKey } from '../lib/day';
 import { TrophyIcon } from '../components/Celebrations';
@@ -7,19 +10,100 @@ import { TrophyIcon } from '../components/Celebrations';
 /** Each round's boss looks a little different. */
 const ROUND_COLOURS = ['#f87171', '#c084fc', '#fb923c', '#38bdf8', '#f472b6', '#facc15'];
 
-/** The Play tab: a boss for each bad habit, and the trophies you've won. Quests, the chest and the character sheet come in Stage 8. */
+/** The Play tab: your character sheet, today's quests and chest, a boss for each bad habit, and your trophies. */
 export function Play({ data, onOpenSettings }: { data: AppData; onOpenSettings: () => void }) {
   const level = overallLevel(totalXp(data));
   const todayKey = appDayKey(getNow(), data.settings.dayStartHour);
   const bosses = allBosses(data, todayKey);
   const trophies = bosses.flatMap((b) => b.trophies.map((t) => ({ ...t, name: b.habit.name }))).sort((a, b) => (a.day < b.day ? 1 : -1));
 
+  const perArea = areaXp(data);
+  const quests = questsFor(data, todayKey);
+  const chest = data.chests[todayKey];
+  const streak = computeStreak(data, parseKey(todayKey));
+  const r = 42;
+  const circ = 2 * Math.PI * r;
+
   return (
     <div className="space-y-8">
-      <header className="flex items-end justify-between pt-2">
+      <header className="pt-2">
         <h1 className="text-3xl font-black tracking-tight">Play</h1>
-        <span className="rounded-lg bg-accent px-2 py-0.5 text-sm font-black tabular-nums text-bg">Lv {level.level}</span>
       </header>
+
+      {/* Character sheet: overall level, and each life area as a stat. */}
+      <section className="rounded-3xl border border-line bg-surface p-4">
+        <div className="flex items-center gap-4">
+          <div className="relative h-28 w-28 shrink-0">
+            <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-hidden>
+              <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth="8" />
+              <circle
+                className="ring-arc"
+                cx="50"
+                cy="50"
+                r={r}
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={circ}
+                strokeDashoffset={circ * (1 - level.into / level.need)}
+              />
+            </svg>
+            <div className="absolute inset-0 grid place-items-center text-center leading-none">
+              <span>
+                <span className="block text-[10px] font-bold uppercase tracking-widest text-muted">Level</span>
+                <span className="block text-4xl font-black tabular-nums text-accent">{level.level}</span>
+              </span>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5 text-sm">
+            <p className="text-xs text-muted">
+              <span className="font-bold tabular-nums text-text">{level.into}</span>/{level.need} XP to level {level.level + 1}
+            </p>
+            <p>
+              <span className="font-black tabular-nums text-min">{balance(data)}</span> <span className="text-muted">points to spend</span>
+            </p>
+            <p>
+              <span className="font-black tabular-nums">{streak.current}</span> <span className="text-muted">day streak</span>
+              {streak.banked > 0 && <span className="text-sky-400"> · {streak.banked} spare shield{streak.banked > 1 ? 's' : ''}</span>}
+            </p>
+            <p>
+              <span className="font-black tabular-nums">{Object.keys(data.achievements).length}</span>
+              <span className="text-muted"> badges · </span>
+              <span className="font-black tabular-nums">{trophies.length}</span>
+              <span className="text-muted"> trophies</span>
+            </p>
+          </div>
+        </div>
+
+        <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4">
+          {data.settings.areas.map((a, i) => {
+            const info = areaLevel(perArea[a.id] ?? 0);
+            return (
+              <li key={a.id}>
+                <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+                  <span className="truncate font-bold uppercase tracking-wide">{a.name.trim() || `Area ${i + 1}`}</span>
+                  <span className="shrink-0 font-black tabular-nums text-full">{info.level}</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                  <div className="h-full rounded-full bg-full transition-[width] duration-500" style={{ width: `${(info.into / info.need) * 100}%` }} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {quests.length > 0 && (
+        <section>
+          <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-widest text-muted">Today</h2>
+          <QuestStrip quests={quests} chestOpen={!!chest} />
+          <p className="mt-2 px-1 text-xs text-muted">
+            {data.settings.game.quest} XP per quest, {data.settings.game.questAll} extra for all three. New quests every day.
+            {chest ? ` Today's chest gave ${describeChest(chest)}.` : ' Finish the day or the evening check-in to open the daily chest.'}
+          </p>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-widest text-muted">Bosses</h2>
@@ -61,11 +145,16 @@ export function Play({ data, onOpenSettings }: { data: AppData; onOpenSettings: 
         </section>
       )}
 
-      <p className="rounded-2xl border border-line bg-surface p-4 text-sm text-muted">
-        Coming next: daily quests, a daily chest and your character sheet.
-      </p>
     </div>
   );
+}
+
+/** "20 XP", "a streak shield", "the Ocean theme"… */
+function describeChest(c: ChestReward): string {
+  if (c.type === 'xp') return `${c.amount} XP${c.jackpot ? ' (jackpot!)' : ''}`;
+  if (c.type === 'shield') return 'a streak shield';
+  const look = ALL_COSMETICS.find((x) => x.id === c.id);
+  return look ? `the ${look.name} ${look.kind === 'theme' ? 'theme' : 'badge style'}` : 'a new look';
 }
 
 function BossCard({ boss }: { boss: BossState }) {

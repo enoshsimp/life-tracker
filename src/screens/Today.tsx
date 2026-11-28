@@ -7,6 +7,9 @@ import { computeStreak, overallLevel, syncDay, totalXp, type LevelInfo } from '.
 import { BadHabitRow, HabitRow, PriorityRow, TimeRow } from '../components/TodayRows';
 import { allBosses } from '../lib/bosses';
 import { useNow } from '../lib/useNow';
+import { openChest } from '../lib/chest';
+import { questsFor } from '../lib/quests';
+import { QuestStrip } from '../components/Quests';
 import { BackupReminder } from '../components/Backup';
 import { CheckIn, checkInItems } from '../components/CheckIn';
 import { CheckIcon } from '../components/TickButton';
@@ -56,6 +59,12 @@ export function Today({
     update((d) => syncDay({ ...d, days: { ...d.days, [key]: fn(d.days[key] ?? emptyDay()) } }, key));
 
   const streak = computeStreak(data, date);
+
+  // Completing the day opens today's chest (once).
+  const chestOpen = !!data.chests[key];
+  useEffect(() => {
+    if (streak.todayDone && !chestOpen) update((d) => openChest(d, key));
+  }, [streak.todayDone, chestOpen, key, update]);
   const level = overallLevel(totalXp(data));
   const pointsToday = data.ledger.filter((e) => e.day === key && e.kind !== 'weekly').reduce((s, e) => s + e.amount, 0);
 
@@ -210,6 +219,7 @@ export function Today({
           streak={streak.current}
           streakAlive={streak.todayDone}
           shieldUsed={streak.shieldUsed}
+          banked={streak.banked}
           pointsToday={pointsToday}
           done={done}
           total={total}
@@ -240,6 +250,8 @@ export function Today({
           <span className="rounded-full bg-bg/20 px-2.5 py-0.5 text-sm tabular-nums">{toCheck.length}</span>
         </button>
       )}
+
+      {hasAnyHabits && <QuestStrip quests={questsFor(data, key)} chestOpen={chestOpen} />}
 
       {backupDue(data, now) && <BackupReminder data={data} update={update} />}
 
@@ -310,6 +322,7 @@ function GameCard({
   streak,
   streakAlive,
   shieldUsed,
+  banked,
   pointsToday,
   done,
   total,
@@ -319,6 +332,7 @@ function GameCard({
   streak: number;
   streakAlive: boolean;
   shieldUsed: boolean;
+  banked: number;
   pointsToday: number;
   done: number;
   total: number;
@@ -384,6 +398,7 @@ function GameCard({
               <path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z" />
             </svg>
             {shieldUsed ? 'Shield used' : 'Shield ready'}
+            {banked > 0 && <span className="rounded bg-sky-400/15 px-1 tabular-nums text-sky-400">+{banked}</span>}
           </span>
         </div>
       </div>

@@ -3,6 +3,10 @@ import { useAppData } from './lib/storage';
 import { useNow } from './lib/useNow';
 import { appDayKey } from './lib/day';
 import { settleDays } from './lib/bosses';
+import { syncDay } from './lib/game';
+import { setFeedbackPrefs } from './lib/feedback';
+import { BadgeStyleContext } from './lib/cosmetics';
+import { Shop } from './screens/Shop';
 import { newId } from './lib/id';
 import { Today } from './screens/Today';
 import { Setup } from './screens/Setup';
@@ -33,7 +37,7 @@ const leftTabs: TabInfo[] = [
 ];
 const rightTabs: TabInfo[] = [{ id: 'more', label: 'More', icon: 'M5 12h.01M12 12h.01M19 12h.01' }];
 
-const pageTitles: Record<MorePage, string> = { progress: 'Progress', inbox: 'Inbox', settings: 'Settings' };
+const pageTitles: Record<MorePage, string> = { progress: 'Progress', shop: 'Reward shop', inbox: 'Inbox', settings: 'Settings' };
 
 export default function App() {
   const [data, update] = useAppData();
@@ -56,6 +60,17 @@ export default function App() {
   useEffect(() => {
     if (data.setupDone && badHabits.length) update((d) => settleDays(d, todayKey));
   }, [todayKey, badHabits, data.setupDone, dataEpoch, update]);
+
+  // Looks and sound from Settings.
+  const { theme, badge } = data.settings.cosmetics;
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  const { sound, haptics } = data.settings;
+  useEffect(() => setFeedbackPrefs({ sound, haptics }), [sound, haptics]);
+
+  // Changes outside Today (captures, inbox) can finish a quest, so today's points are re-checked.
+  const updateToday = useCallback((fn: (d: AppData) => AppData) => update((d) => syncDay(fn(d), todayKey)), [update, todayKey]);
 
   if (!data.setupDone) {
     return (
@@ -85,6 +100,7 @@ export default function App() {
   };
 
   return (
+    <BadgeStyleContext.Provider value={badge}>
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
       <main className="flex-1 px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">
         {tab === 'today' && (
@@ -96,7 +112,8 @@ export default function App() {
           <div className="space-y-6">
             <SubPageHeader title={pageTitles[morePage]} onBack={() => go('more')} />
             {morePage === 'progress' && <Progress data={data} />}
-            {morePage === 'inbox' && <Inbox data={data} update={update} />}
+            {morePage === 'shop' && <Shop data={data} update={update} />}
+            {morePage === 'inbox' && <Inbox data={data} update={updateToday} />}
             {morePage === 'settings' && <SettingsScreen data={data} update={update} replaceData={replaceData} />}
           </div>
         )}
@@ -109,7 +126,7 @@ export default function App() {
         open={captureOpen}
         onClose={closeCapture}
         onSave={(text, tag) =>
-          update((d) => ({ ...d, inbox: [{ id: newId(), text, tag, createdAt: new Date().toISOString(), done: false }, ...d.inbox] }))
+          updateToday((d) => ({ ...d, inbox: [{ id: newId(), text, tag, createdAt: new Date().toISOString(), done: false }, ...d.inbox] }))
         }
       />
 
@@ -127,6 +144,7 @@ export default function App() {
         </div>
       </nav>
     </div>
+    </BadgeStyleContext.Provider>
   );
 }
 

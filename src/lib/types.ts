@@ -95,7 +95,33 @@ export interface GameSettings {
   slipHeal: number;
   /** Points for defeating a boss. */
   bossDefeat: number;
+  /** Points for finishing a whole time-of-day group. */
+  combo: number;
+  /** Points for each daily quest done… */
+  quest: number;
+  /** …and extra for doing all three. */
+  questAll: number;
+  /** Points when the daily chest gives XP (sometimes doubled). */
+  chestXp: number;
 }
+
+/** A real-life treat you buy with points. */
+export interface Reward {
+  id: string;
+  name: string;
+  cost: number;
+}
+
+/** Looks chosen in Settings, from the ones found in chests. */
+export interface Cosmetics {
+  /** Colour theme id ("default" or one from a chest). */
+  theme: string;
+  /** Badge style id ("star" or one from a chest). */
+  badge: string;
+}
+
+/** What a daily chest gave. */
+export type ChestReward = { type: 'xp'; amount: number; jackpot?: boolean } | { type: 'shield' } | { type: 'cosmetic'; id: string };
 
 export interface Settings {
   /** Hour (0–23) when a new app-day begins. */
@@ -114,6 +140,13 @@ export interface Settings {
   /** From this time ("HH:MM") Today offers the evening check-in. */
   checkInFrom: string;
   game: GameSettings;
+  /** The reward shop's items. */
+  rewards: Reward[];
+  cosmetics: Cosmetics;
+  /** Play sounds on taps and celebrations. */
+  sound: boolean;
+  /** Vibrate on taps (Android; iPhones don't allow it). */
+  haptics: boolean;
 }
 
 export interface TimeLog {
@@ -155,7 +188,20 @@ export interface InboxItem {
 }
 
 /** What a ledger entry was for. Later stages add more (personal bests, purchases…). */
-export type LedgerKind = 'habit' | 'wake' | 'bed' | 'priority' | 'weekly' | 'resisted' | 'clean' | 'comeback' | 'boss';
+export type LedgerKind =
+  | 'habit'
+  | 'wake'
+  | 'bed'
+  | 'priority'
+  | 'weekly'
+  | 'resisted'
+  | 'clean'
+  | 'comeback'
+  | 'boss'
+  | 'combo'
+  | 'quest'
+  | 'chest'
+  | 'purchase';
 
 /** One line in the points ledger. Spending (later) is a negative amount. */
 export interface LedgerEntry {
@@ -172,6 +218,8 @@ export interface LedgerEntry {
   areaId?: string;
   /** True when the random bonus doubled it. */
   bonus?: boolean;
+  /** For a purchase: what was bought, kept even if the reward is deleted later. */
+  label?: string;
 }
 
 /** Housekeeping about the data itself. */
@@ -181,7 +229,7 @@ export interface Meta {
 }
 
 export interface AppData {
-  version: 7;
+  version: 8;
   /** False until the first-run setup wizard has been completed. */
   setupDone: boolean;
   settings: Settings;
@@ -193,5 +241,7 @@ export interface AppData {
   ledger: LedgerEntry[];
   /** Badges unlocked: badge id → ISO timestamp. */
   achievements: Record<string, string>;
+  /** Daily chests opened: app-day → what it gave. Banked shields and unlocked looks are worked out from this. */
+  chests: Record<string, ChestReward>;
   meta: Meta;
 }
